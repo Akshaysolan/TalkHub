@@ -1,0 +1,249 @@
+{% extends 'chat_app/base.html' %}
+
+{% block title %}Home - Chat App{% endblock %}
+{% block header_title %}Dashboard{% endblock %}
+{% block header_subtitle %}<small class="opacity-75">Welcome back, {{ user.username }}!</small>{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Welcome Card -->
+    <div class="col-12 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3 class="card-title text-primary mb-3">Welcome to Chat Application!</h3>
+                        <p class="card-text text-muted lead">Connect with friends, join exciting chat rooms, or have intelligent conversations with our AI assistant. Start chatting now!</p>
+                        <div class="mt-4">
+                            <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                                <i class="fas fa-plus me-2"></i>Create Room
+                            </button>
+                            <button class="btn btn-outline-primary" id="exploreRooms">
+                                <i class="fas fa-search me-2"></i>Explore Rooms
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="position-relative">
+                            <i class="fas fa-comments text-primary opacity-25" style="font-size: 8rem;"></i>
+                            <div class="position-absolute top-50 start-50 translate-middle">
+                                <i class="fas fa-robot text-info" style="font-size: 3rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow-sm h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Active Rooms
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rooms.count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-comments fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow-sm h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Online Users
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">24</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow-sm h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            AI Assistant
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">Ready</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-robot fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow-sm h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Messages Today
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">156</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-comment-dots fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="col-lg-8">
+        <!-- Chat Rooms Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary">
+                        <i class="fas fa-hashtag me-2"></i>Available Chat Rooms
+                    </h5>
+                    <span class="badge bg-primary">{{ rooms.count }} rooms</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if rooms %}
+                    <div class="list-group list-group-flush">
+                        {% for room in rooms %}
+                            <a href="{% url 'chat_app:room' room.name %}" class="list-group-item list-group-item-action py-3">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary rounded-circle p-2 me-3">
+                                            <i class="fas fa-comments text-white"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">{{ room.name }}</h6>
+                                            <p class="mb-0 text-muted small">Join the conversation with other users</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted d-block">Created {{ room.created_at|timesince }} ago</small>
+                                        <span class="badge bg-light text-dark">{{ room.messages.count }} messages</span>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No chat rooms available</h5>
+                        <p class="text-muted">Be the first to create a chat room!</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                            <i class="fas fa-plus me-2"></i>Create First Room
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Widgets -->
+    <div class="col-lg-4">
+        <!-- AI Chat Widget -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-gradient-info text-white">
+                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI ChatGPT Assistant</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Get instant help, answers, and engaging conversations with our advanced AI assistant powered by ChatGPT technology.</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-info" id="startAIChat">
+                        <i class="fas fa-comment-dots me-2"></i>Start AI Chat
+                    </button>
+                    <button class="btn btn-outline-info">
+                        <i class="fas fa-lightbulb me-2"></i>Ask a Question
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                        <i class="fas fa-plus me-2"></i>Create New Room
+                    </button>
+                    <button class="btn btn-outline-success text-start">
+                        <i class="fas fa-user-plus me-2"></i>Invite Friends
+                    </button>
+                    <button class="btn btn-outline-warning text-start">
+                        <i class="fas fa-cog me-2"></i>Settings
+                    </button>
+                    <button class="btn btn-outline-info text-start">
+                        <i class="fas fa-question-circle me-2"></i>Help & Support
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Room Modal -->
+<div class="modal fade" id="createRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Create New Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'chat_app:create_room' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="room_name" class="form-label">Room Name</label>
+                        <input type="text" class="form-control" id="room_name" name="room_name" required 
+                               placeholder="Enter a creative room name">
+                        <div class="form-text">Choose a descriptive name that represents your chat room's purpose.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('startAIChat').addEventListener('click', function() {
+        alert('AI ChatGPT feature is coming soon! This will open a dedicated chat interface with our AI assistant.');
+    });
+
+    document.getElementById('exploreRooms').addEventListener('click', function() {
+        document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Auto-focus on room name input when modal opens
+    document.getElementById('createRoomModal').addEventListener('shown.bs.modal', function () {
+        document.getElementById('room_name').focus();
+    });
+</script>
+{% endblock %}
