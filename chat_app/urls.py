@@ -10,5 +10,9 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('create_room/', views.create_room, name='create_room'),
     path('room/<str:room_name>/', views.room, name='room'),
+    path('direct-messages/', views.direct_messages, name='direct_messages'),
+    path('group-chats/', views.group_chats, name='group_chats'),
+    path('favorites/', views.favorites, name='favorites'),
+    path('settings/', views.settings, name='settings'),
     path('api/messages/<str:room_name>/', views.get_messages, name='get_messages'),
 ]

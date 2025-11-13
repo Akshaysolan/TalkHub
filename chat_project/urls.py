@@ -19,27 +19,6 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.http import HttpResponse
 
-def websocket_test(request):
-    return HttpResponse("""
-    <html>
-    <body>
-        <h1>WebSocket Test</h1>
-        <div id="status">Testing WebSocket...</div>
-        <script>
-            const ws = new WebSocket('ws://' + window.location.host + '/ws/chat/test/');
-            ws.onopen = function() {
-                document.getElementById('status').textContent = 'WebSocket CONNECTED!';
-            };
-            ws.onerror = function(e) {
-                document.getElementById('status').textContent = 'WebSocket ERROR: ' + e;
-            };
-            ws.onclose = function() {
-                document.getElementById('status').textContent = 'WebSocket CLOSED';
-            };
-        </script>
-    </body>
-    </html>
-    """)
 
 def redirect_to_login(request):
     return redirect('chat_app:login')
@@ -47,5 +26,6 @@ def redirect_to_login(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('chat_app.urls')),
-    path('websocket-test/', websocket_test, name='websocket_test'),
+    # Add a redirect for the root URL
+    path('', redirect_to_login, name='root_redirect'),
 ]

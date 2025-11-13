@@ -1,0 +1,125 @@
+{% extends 'chat_app/base.html' %}
+
+{% block title %}Direct Messages - Chat App{% endblock %}
+{% block header_title %}Direct Messages{% endblock %}
+{% block header_subtitle %}<small class="opacity-75">Private conversations</small>{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-user-friends me-2"></i>Your Conversations</h5>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newDMModal">
+                    <i class="fas fa-plus me-1"></i>New Message
+                </button>
+            </div>
+            <div class="card-body">
+                {% if dm_conversations %}
+                    <div class="list-group list-group-flush">
+                        {% for conversation in dm_conversations %}
+                            <a href="{% url 'chat_app:direct_message_chat' conversation.user.username %}" 
+                               class="list-group-item list-group-item-action py-3">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <div class="position-relative me-3">
+                                            <div class="bg-primary rounded-circle p-2">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
+                                            {% if conversation.user.profile.is_online %}
+                                                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-white rounded-circle">
+                                                    <span class="visually-hidden">Online</span>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">{{ conversation.user.username }}</h6>
+                                            {% if conversation.last_message %}
+                                                <p class="mb-0 text-muted small">
+                                                    {{ conversation.last_message.content|truncatewords:10 }}
+                                                </p>
+                                            {% else %}
+                                                <p class="mb-0 text-muted small">Start a conversation</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if conversation.last_message %}
+                                            <small class="text-muted d-block">
+                                                {{ conversation.last_message.timestamp|timesince }} ago
+                                            </small>
+                                        {% endif %}
+                                        {% if conversation.unread_count > 0 %}
+                                            <span class="badge bg-danger">{{ conversation.unread_count }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-user-friends fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No conversations yet</h5>
+                        <p class="text-muted">Start a new direct message conversation</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newDMModal">
+                            <i class="fas fa-plus me-2"></i>Start Conversation
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New DM Modal -->
+<div class="modal fade" id="newDMModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>New Direct Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="userSearch" class="form-label">Search Users</label>
+                    <input type="text" class="form-control" id="userSearch" placeholder="Type username...">
+                    <div id="userSearchResults" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('userSearch').addEventListener('input', function() {
+        const query = this.value;
+        if (query.length > 2) {
+            fetch(`{% url 'chat_app:user_search' %}?q=${query}`)
+                .then(response => response.json())
+                .then(users => {
+                    const resultsDiv = document.getElementById('userSearchResults');
+                    resultsDiv.innerHTML = '';
+                    
+                    users.forEach(user => {
+                        const userDiv = document.createElement('div');
+                        userDiv.className = 'list-group-item list-group-item-action';
+                        userDiv.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${user.username}</strong>
+                                    ${user.is_online ? '<span class="badge bg-success ms-2">Online</span>' : ''}
+                                </div>
+                                <a href="{% url 'chat_app:direct_message_chat' 'USERNAME' %}".replace('USERNAME', user.username) 
+                                   class="btn btn-primary btn-sm">Message</a>
+                            </div>
+                        `;
+                        resultsDiv.appendChild(userDiv);
+                    });
+                });
+        }
+    });
+</script>
+{% endblock %}

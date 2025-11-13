@@ -45,7 +45,7 @@
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                             Active Rooms
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rooms.count }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_rooms_count|default:0 }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-comments fa-2x text-gray-300"></i>
@@ -63,7 +63,7 @@
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                             Online Users
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">24</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ online_users_count|default:0 }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -79,12 +79,12 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            AI Assistant
+                            Messages Today
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">Ready</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ today_messages_count|default:0 }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-robot fa-2x text-gray-300"></i>
+                        <i class="fas fa-comment-dots fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -97,12 +97,12 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Messages Today
+                            Your Messages
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">156</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user.message_set.count|default:0 }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-comment-dots fa-2x text-gray-300"></i>
+                        <i class="fas fa-user fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -133,12 +133,25 @@
                                         </div>
                                         <div>
                                             <h6 class="mb-1">{{ room.name }}</h6>
-                                            <p class="mb-0 text-muted small">Join the conversation with other users</p>
+                                            <p class="mb-0 text-muted small">
+                                                {% if room.description %}
+                                                    {{ room.description|truncatewords:10 }}
+                                                {% else %}
+                                                    Join the conversation with other users
+                                                {% endif %}
+                                            </p>
                                         </div>
                                     </div>
                                     <div class="text-end">
                                         <small class="text-muted d-block">Created {{ room.created_at|timesince }} ago</small>
-                                        <span class="badge bg-light text-dark">{{ room.messages.count }} messages</span>
+                                        <div class="mt-1">
+                                            <span class="badge bg-light text-dark me-1">
+                                                <i class="fas fa-comment me-1"></i>{{ room.message_count|default:0 }}
+                                            </span>
+                                            <span class="badge bg-light text-dark">
+                                                <i class="fas fa-users me-1"></i>{{ room.user_count|default:0 }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </a>
@@ -156,6 +169,49 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Favorite Rooms Section -->
+        {% if favorite_rooms %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-warning">
+                        <i class="fas fa-star me-2"></i>Your Favorite Rooms
+                    </h5>
+                    <span class="badge bg-warning">{{ favorite_rooms.count }} favorites</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for favorite in favorite_rooms %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-warning h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title mb-0 text-warning">
+                                            <i class="fas fa-hashtag me-1"></i>{{ favorite.room.name }}
+                                        </h6>
+                                        <i class="fas fa-star text-warning"></i>
+                                    </div>
+                                    {% if favorite.room.description %}
+                                        <p class="card-text text-muted small">{{ favorite.room.description|truncatewords:15 }}</p>
+                                    {% endif %}
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-users me-1"></i>{{ favorite.room.user_count|default:0 }} members
+                                        </small>
+                                        <a href="{% url 'chat_app:room' favorite.room.name %}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-door-open me-1"></i>Join
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Sidebar Widgets -->
@@ -171,7 +227,7 @@
                     <button class="btn btn-info" id="startAIChat">
                         <i class="fas fa-comment-dots me-2"></i>Start AI Chat
                     </button>
-                    <button class="btn btn-outline-info">
+                    <button class="btn btn-outline-info" id="askQuestion">
                         <i class="fas fa-lightbulb me-2"></i>Ask a Question
                     </button>
                 </div>
@@ -179,7 +235,7 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white">
                 <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
             </div>
@@ -188,15 +244,51 @@
                     <button class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#createRoomModal">
                         <i class="fas fa-plus me-2"></i>Create New Room
                     </button>
-                    <button class="btn btn-outline-success text-start">
-                        <i class="fas fa-user-plus me-2"></i>Invite Friends
-                    </button>
-                    <button class="btn btn-outline-warning text-start">
+                    <a href="{% url 'chat_app:direct_messages' %}" class="btn btn-outline-success text-start">
+                        <i class="fas fa-envelope me-2"></i>Direct Messages
+                    </a>
+                    <a href="{% url 'chat_app:group_chats' %}" class="btn btn-outline-info text-start">
+                        <i class="fas fa-users me-2"></i>Group Chats
+                    </a>
+                    <a href="{% url 'chat_app:settings' %}" class="btn btn-outline-warning text-start">
                         <i class="fas fa-cog me-2"></i>Settings
-                    </button>
-                    <button class="btn btn-outline-info text-start">
-                        <i class="fas fa-question-circle me-2"></i>Help & Support
-                    </button>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for room in rooms|slice:":3" %}
+                    <div class="list-group-item px-0 border-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small class="text-muted">New room created</small>
+                            <small class="text-muted">{{ room.created_at|timesince }} ago</small>
+                        </div>
+                        <p class="mb-1 small">Room "{{ room.name }}" was created</p>
+                    </div>
+                    {% endfor %}
+                    {% if user.message_set.last %}
+                    <div class="list-group-item px-0 border-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small class="text-muted">Your last message</small>
+                            <small class="text-muted">{{ user.message_set.last.timestamp|timesince }} ago</small>
+                        </div>
+                        <p class="mb-1 small">"{{ user.message_set.last.content|truncatewords:5 }}"</p>
+                    </div>
+                    {% endif %}
+                    <div class="list-group-item px-0 border-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small class="text-muted">Account</small>
+                            <small class="text-muted">{{ user.date_joined|timesince }} ago</small>
+                        </div>
+                        <p class="mb-1 small">You joined Chat Application</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -220,6 +312,15 @@
                                placeholder="Enter a creative room name">
                         <div class="form-text">Choose a descriptive name that represents your chat room's purpose.</div>
                     </div>
+                    <div class="mb-3">
+                        <label for="room_description" class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" id="room_description" name="description" rows="3" 
+                                  placeholder="Describe what this room is about..."></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_private" name="is_private">
+                        <label class="form-check-label" for="is_private">Make this room private</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -237,6 +338,13 @@
         alert('AI ChatGPT feature is coming soon! This will open a dedicated chat interface with our AI assistant.');
     });
 
+    document.getElementById('askQuestion').addEventListener('click', function() {
+        const question = prompt('What would you like to ask our AI assistant?');
+        if (question) {
+            alert('AI Response: This feature is coming soon! Your question: "' + question + '" would be processed by our AI assistant.');
+        }
+    });
+
     document.getElementById('exploreRooms').addEventListener('click', function() {
         document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
     });
@@ -244,6 +352,15 @@
     // Auto-focus on room name input when modal opens
     document.getElementById('createRoomModal').addEventListener('shown.bs.modal', function () {
         document.getElementById('room_name').focus();
+    });
+
+    // Quick action buttons functionality
+    document.querySelectorAll('.btn-outline-primary').forEach(btn => {
+        if (btn.textContent.includes('Create New Room')) {
+            btn.addEventListener('click', function() {
+                document.getElementById('createRoomModal').classList.add('show');
+            });
+        }
     });
 </script>
 {% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'chat_app/base.html' %}
+
+{% block title %}Settings - Chat App{% endblock %}
+{% block header_title %}Settings{% endblock %}
+{% block header_subtitle %}<small class="opacity-75">Manage your account preferences</small>{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-user-cog me-2"></i>Profile Settings</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                            <div class="form-text">Username cannot be changed</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" value="{{ user.email }}" readonly>
+                            <div class="form-text">Contact admin to change email</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Bio</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="4" 
+                                  placeholder="Tell others about yourself...">{{ profile.bio|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Account Status</label>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-circle text-success me-2"></i>
+                            <span>Active</span>
+                            <small class="text-muted ms-2">Member since {{ user.date_joined|date:"M d, Y" }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Online Status</label>
+                        <div>
+                            {% if profile.is_online %}
+                                <span class="badge bg-success">Online</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Offline</span>
+                                <small class="text-muted ms-2">Last seen {{ profile.last_seen|timesince }} ago</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rest of the settings template remains the same -->
+</div>
+{% endblock %}
