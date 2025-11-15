@@ -1,40 +1,197 @@
-{% extends 'chat_app/base.html' %}
-{% block title %}AI Chat{% endblock %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Chat Assistant</title>
 
-{% block content %}
-<div class="container mt-4">
-    <h3><i class="fas fa-robot"></i> AI ChatGPT</h3>
-    <div id="chatBox" class="border p-3 rounded mb-3" 
-         style="height: 400px; overflow-y: auto; background: #f8f9fa;">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial;
+            background: #f4f4f4;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* LEFT SIDEBAR */
+        .sidebar {
+            width: 260px;
+            background: #202123;
+            color: white;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h3 {
+            margin-top: 0;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .side-btn {
+            background: #343541;
+            color: white;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .side-btn:hover {
+            background: #40414f;
+        }
+
+        .history-list {
+            margin-top: 15px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: #343541;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            background: #4b4d5a;
+        }
+
+        /* CHAT AREA */
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chatBox {
+            height: calc(100vh - 120px);
+            padding: 15px;
+            overflow-y: auto;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #inputBox {
+            width: 80%;
+            padding: 10px;
+        }
+
+        #sendBtn {
+            padding: 10px 20px;
+        }
+
+        .input-area {
+            padding: 15px;
+            background: #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+
+        <h3>AI Assistant</h3>
+
+        <button class="side-btn" onclick="startNewChat()">➕ New Chat</button>
+        <button class="side-btn">📜 History</button>
+        <button class="side-btn">⚙️ Settings</button>
+
+        <div class="history-list" id="historyList">
+            <!-- Chat history gets added here -->
+        </div>
+
     </div>
 
-    <div class="input-group mb-3">
-        <input type="text" id="userInput" class="form-control" placeholder="Type your message...">
-        <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+    <!-- RIGHT CHAT AREA -->
+    <div class="chat-area">
+
+        <div id="chatBox"></div>
+
+        <div class="input-area">
+            <input id="inputBox" type="text" placeholder="Ask something..." />
+            <button id="sendBtn">Send</button>
+        </div>
+
     </div>
+
 </div>
 
+<!-- JS Logic -->
 <script>
-function sendMessage() {
-    let input = document.getElementById("userInput");
-    let chatBox = document.getElementById("chatBox");
+let chatHistory = [];
+let chatBox = document.getElementById("chatBox");
+let historyList = document.getElementById("historyList");
 
-    let userMsg = input.value.trim();
-    if (!userMsg) return;
+// NEW CHAT
+function startNewChat() {
+    chatBox.innerHTML = "";
+    chatHistory.push("New chat started");
+    updateHistory();
+}
 
-    chatBox.innerHTML += `<p><b>You:</b> ${userMsg}</p>`;
-    input.value = "";
-
-    fetch("{% url 'chat_app:ai_chat' %}", {
-        method: "POST",
-        headers: { "X-CSRFToken": "{{ csrf_token }}" },
-        body: new URLSearchParams({ "message": userMsg })
-    })
-    .then(res => res.json())
-    .then(data => {
-        chatBox.innerHTML += `<p><b>AI:</b> ${data.reply}</p>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
+// UPDATE LEFT-SIDE HISTORY LIST
+function updateHistory() {
+    historyList.innerHTML = "";
+    chatHistory.forEach((item, index) => {
+        historyList.innerHTML += `
+            <div class="history-item">Chat ${index + 1}</div>
+        `;
     });
 }
+
+// SEND MESSAGE
+document.getElementById("sendBtn").onclick = async function () {
+    let message = document.getElementById("inputBox").value.trim();
+    if (!message) return;
+
+    // Display user message
+    chatBox.innerHTML += `<p><b>You:</b> ${message}</p>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Save to history
+    chatHistory.push(message);
+    updateHistory();
+
+    // Clear input
+    document.getElementById("inputBox").value = "";
+
+    // Send to Django
+    let formData = new FormData();
+    formData.append("message", message);
+
+    let response = await fetch("{% url 'chat_app:ai_chat_api' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+        body: formData
+    });
+
+    let data = await response.json();
+
+    chatBox.innerHTML += `<p><b>AI:</b> ${data.reply}</p>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+};
 </script>
-{% endblock %}
+
+</body>
+</html>

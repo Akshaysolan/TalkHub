@@ -8,12 +8,14 @@ from .models import Room, Message, DirectMessage
 from django.contrib.auth.models import User
 from django.db.models import Q, Max, Count
 
+
+import os
 from .ai_chat import ask_gemini
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.http import JsonResponse
 import google.generativeai as genai
-import os
+from groq import Groq
 
 def register_view(request):
     if request.method == 'POST':
@@ -279,17 +281,34 @@ def get_direct_messages(request, username):
     return JsonResponse(data, safe=False)
 
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Load Groq API Key
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def ask_ai(message):
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": message}]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@login_required
+def ai_assistant_view(request):
+    return render(request, "chat_app/ai_assistant.html")
+
 
 @csrf_exempt
 @login_required
-def ai_assistant_view(request):
+def ai_chat_api(request):
     if request.method == "POST":
-        user_message = request.POST.get("message", "")
-        if not user_message:
-            return JsonResponse({"reply": "Message cannot be empty."})
+        user_msg = request.POST.get("message", "")
+        if not user_msg:
+            return JsonResponse({"reply": "Message cannot be empty!"})
 
-        ai_response = ask_gemini(user_message)
-        return JsonResponse({"reply": ai_response})
+        ai_reply = ask_ai(user_msg)
+        return JsonResponse({"reply": ai_reply})
 
-    return render(request, "chat_app/ai_assistant.html")
+    return JsonResponse({"error": "Invalid request"}, status=400)

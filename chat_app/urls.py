@@ -22,7 +22,7 @@ urlpatterns = [
     path('user-search/', views.user_search, name='user_search'),
     
     path('ai-assistant/', views.ai_assistant_view, name='ai_assistant'),
-
+    path('ai-chat/', views.ai_chat_api, name='ai_chat_api'),
 
 
 ]

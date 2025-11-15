@@ -385,15 +385,14 @@
         });
 
         // AI Chat functionality
-        document.getElementById('aiChatLink').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('AI ChatGPT feature coming soon! This will integrate with OpenAI API for intelligent conversations.');
+        document.getElementById('aiChatLink').addEventListener('click', function() {
+            // No preventDefault here, allow normal redirection
         });
 
+        
         // AI Chat functionality for footer
-        document.getElementById('aiChatLinkFooter').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('AI ChatGPT feature coming soon! This will integrate with OpenAI API for intelligent conversations.');
+        document.getElementById('aiChatLinkFooter').addEventListener('click', function() {
+           // No preventDefault, allow redirect
         });
 
         // Close sidebar when clicking outside on mobile
