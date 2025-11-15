@@ -281,34 +281,171 @@ def get_direct_messages(request, username):
     return JsonResponse(data, safe=False)
 
 
-# Load Groq API Key
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# # Load Groq API Key
+# client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-def ask_ai(message):
+# def ask_ai(message):
+#     try:
+#         response = client.chat.completions.create(
+#             model="llama-3.3-70b-versatile",
+#             messages=[{"role": "user", "content": message}]
+#         )
+#         return response.choices[0].message.content
+#     except Exception as e:
+#         return f"Error: {str(e)}"
+
+
+# @login_required
+# def ai_assistant_view(request):
+#     return render(request, "chat_app/ai_assistant.html")
+
+
+# @csrf_exempt
+# @login_required
+# def ai_chat_api(request):
+#     if request.method == "POST":
+#         user_msg = request.POST.get("message", "")
+#         if not user_msg:
+#             return JsonResponse({"reply": "Message cannot be empty!"})
+
+#         ai_reply = ask_ai(user_msg)
+#         return JsonResponse({"reply": ai_reply})
+
+#     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+import os
+import json
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from groq import Groq
+
+from .models import ChatSession, ChatMessage
+
+# configure groq client (use env var)
+GROQ_KEY = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=GROQ_KEY) if GROQ_KEY else None
+
+def ask_groq(message):
+    """
+    Call Groq chat completion and return assistant text.
+    Important: Groq returns objects, so use dot-notation: .message.content
+    """
+    if client is None:
+        return "AI not configured (GROQ_API_KEY missing)."
+
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        resp = client.chat.completions.create(
+            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
             messages=[{"role": "user", "content": message}]
         )
-        return response.choices[0].message.content
+
+        # CORRECT: use dot access, not dict indexing
+        # e.g. resp.choices[0].message.content
+        # protect against unexpected shape:
+        choice = getattr(resp.choices[0], "message", None)
+        if choice is None:
+            # fallback: try the older style if available
+            return str(resp)
+        return choice.content
+
     except Exception as e:
+        # return readable error for frontend
         return f"Error: {str(e)}"
 
 
 @login_required
 def ai_assistant_view(request):
-    return render(request, "chat_app/ai_assistant.html")
+    # main page
+    return render(request, 'chat_app/ai_assistant.html', {})
 
 
 @csrf_exempt
 @login_required
 def ai_chat_api(request):
+    # send message -> returns AI reply and stores both messages
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=400)
+
+    session_id = request.POST.get("session_id")
+    message = request.POST.get("message", "").strip()
+    if not message:
+        return JsonResponse({"reply": "Message cannot be empty."})
+
+    # get or create session if not provided
+    if session_id:
+        try:
+            session = ChatSession.objects.get(id=int(session_id), user=request.user)
+        except ChatSession.DoesNotExist:
+            return JsonResponse({"error": "Session not found."}, status=404)
+    else:
+        session = ChatSession.objects.create(user=request.user, title=(message[:50] or "New chat"))
+
+    # save user message
+    ChatMessage.objects.create(session=session, sender='user', content=message)
+
+    # ask AI
+    ai_reply = ask_groq(message)
+
+    # save AI message
+    ChatMessage.objects.create(session=session, sender='ai', content=ai_reply)
+
+    # update session title (first user message as title if empty)
+    if not session.title:
+        session.title = message[:60]
+        session.save()
+
+    return JsonResponse({
+        "reply": ai_reply,
+        "session_id": session.id,
+    })
+
+
+@login_required
+def ai_sessions_list(request):
+    # GET: return list of sessions, POST: create empty session
+    if request.method == "GET":
+        sessions = ChatSession.objects.filter(user=request.user).order_by('-updated_at')
+        data = []
+        for s in sessions:
+            last_msg = s.messages.last()
+            preview = (last_msg.content[:80] + '...') if last_msg else ''
+            data.append({
+                "id": s.id,
+                "title": s.title or f"Chat {s.id}",
+                "updated_at": s.updated_at.isoformat(),
+                "preview": preview,
+            })
+        return JsonResponse(data, safe=False)
+
     if request.method == "POST":
-        user_msg = request.POST.get("message", "")
-        if not user_msg:
-            return JsonResponse({"reply": "Message cannot be empty!"})
+        # create new empty session
+        s = ChatSession.objects.create(user=request.user, title=request.POST.get("title", "New chat"))
+        return JsonResponse({"id": s.id, "title": s.title})
 
-        ai_reply = ask_ai(user_msg)
-        return JsonResponse({"reply": ai_reply})
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+@login_required
+def ai_session_detail(request, session_id):
+    # GET messages for session
+    s = get_object_or_404(ChatSession, id=session_id, user=request.user)
+    msgs = s.messages.all().values("id", "sender", "content", "timestamp")
+    return JsonResponse(list(msgs), safe=False)
+
+
+@login_required
+def ai_delete_session(request, session_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=400)
+    s = get_object_or_404(ChatSession, id=session_id, user=request.user)
+    s.delete()
+    return JsonResponse({"deleted": True})
+
+
+@login_required
+def ai_delete_all_sessions(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST only"}, status=400)
+    ChatSession.objects.filter(user=request.user).delete()
+    return JsonResponse({"deleted_all": True})

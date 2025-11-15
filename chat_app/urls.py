@@ -25,4 +25,13 @@ urlpatterns = [
     path('ai-chat/', views.ai_chat_api, name='ai_chat_api'),
 
 
+    # AI / chat session endpoints
+    path('ai-assistant/', views.ai_assistant_view, name='ai_assistant'),
+    path('ai/api/chat/', views.ai_chat_api, name='ai_chat_api'),            # send message (existing)
+    path('ai/api/sessions/', views.ai_sessions_list, name='ai_sessions_list'),   # GET list, POST create
+    path('ai/api/sessions/<int:session_id>/', views.ai_session_detail, name='ai_session_detail'),  # GET session messages
+    path('ai/api/sessions/<int:session_id>/delete/', views.ai_delete_session, name='ai_delete_session'),
+    path('ai/api/sessions/delete_all/', views.ai_delete_all_sessions, name='ai_delete_all_sessions'),
+
+
 ]
