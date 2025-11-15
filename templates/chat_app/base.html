@@ -192,11 +192,11 @@
             </a>
             
             <!-- AI Chat Section -->
-            <a class="nav-link" href="#" id="aiChatLink">
+            <a class="nav-link" href="{% url 'chat_app:ai_assistant' %}" id="aiChatLink">
                 <i class="fas fa-robot"></i> AI ChatGPT
             </a>
 
-            <!-- Group Chats -->
+            <!-- Group Chats --> 
             <a class="nav-link {% if request.resolver_match.url_name == 'group_chats' %}active{% endif %}" href="{% url 'chat_app:group_chats' %}">
                 <i class="fas fa-users"></i> Group Chats
             </a>

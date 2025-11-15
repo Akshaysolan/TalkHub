@@ -1,3 +1,4 @@
+# chat_app/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -21,3 +22,20 @@ class Message(models.Model):
     
     def __str__(self):
         return f'{self.user.username}: {self.content[:20]}'
+
+# NEW model for direct messages
+class DirectMessage(models.Model):
+    sender = models.ForeignKey(User, related_name='sent_direct_messages', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name='received_direct_messages', on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['timestamp']
+        indexes = [
+            models.Index(fields=['sender', 'receiver', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f'DM {self.sender.username} -> {self.receiver.username}: {self.content[:20]}'

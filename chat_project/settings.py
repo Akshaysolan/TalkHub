@@ -1,5 +1,8 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -96,3 +99,5 @@ CHANNEL_LAYERS = {
 LOGIN_URL = 'chat_app:login'
 LOGIN_REDIRECT_URL = 'chat_app:index'
 LOGOUT_REDIRECT_URL = 'chat_app:login'
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

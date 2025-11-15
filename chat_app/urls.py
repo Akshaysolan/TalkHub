@@ -15,4 +15,14 @@ urlpatterns = [
     path('favorites/', views.favorites, name='favorites'),
     path('settings/', views.settings, name='settings'),
     path('api/messages/<str:room_name>/', views.get_messages, name='get_messages'),
+    
+    path('dm/<str:username>/', views.direct_message_chat, name='direct_message_chat'),
+    path('dm/send/<str:username>/', views.send_direct_message, name='send_direct_message'),
+    path('dm/get/<str:username>/', views.get_direct_messages, name='get_direct_messages'),
+    path('user-search/', views.user_search, name='user_search'),
+    
+    path('ai-assistant/', views.ai_assistant_view, name='ai_assistant'),
+
+
+
 ]
