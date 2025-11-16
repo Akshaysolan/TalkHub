@@ -33,5 +33,9 @@ urlpatterns = [
     path('ai/api/sessions/<int:session_id>/delete/', views.ai_delete_session, name='ai_delete_session'),
     path('ai/api/sessions/delete_all/', views.ai_delete_all_sessions, name='ai_delete_all_sessions'),
 
+    path('groups/', views.group_chats, name='group_chats'),
+    path('groups/create/', views.create_group, name='create_group'),
+    path('groups/<str:room_name>/', views.start_group_chat, name='start_group_chat'),
+
 
 ]

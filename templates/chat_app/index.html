@@ -5,14 +5,452 @@
 {% block header_subtitle %}<small class="opacity-75">Welcome back, {{ user.username }}!</small>{% endblock %}
 
 {% block content %}
-<div class="row">
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+        --success-gradient: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        --info-gradient: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        --warning-gradient: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s ease;
+    }
+
+    /* Welcome Card Styling */
+    .welcome-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-medium);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .welcome-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary-gradient);
+    }
+
+    .welcome-card .card-title {
+        font-weight: 700;
+        font-size: 1.75rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .welcome-card .lead {
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+
+    .welcome-icon {
+        position: relative;
+        transition: var(--transition);
+    }
+
+    .welcome-icon:hover {
+        transform: scale(1.05);
+    }
+
+    /* Stats Cards Styling */
+    .stats-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+    }
+
+    .stats-card.border-left-primary::before {
+        background: var(--primary-gradient);
+    }
+
+    .stats-card.border-left-success::before {
+        background: var(--success-gradient);
+    }
+
+    .stats-card.border-left-info::before {
+        background: var(--info-gradient);
+    }
+
+    .stats-card.border-left-warning::before {
+        background: var(--warning-gradient);
+    }
+
+    .stats-card .text-xs {
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-card .h5 {
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .stats-card .fa-2x {
+        opacity: 0.8;
+        transition: var(--transition);
+    }
+
+    .stats-card:hover .fa-2x {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    /* Chat Rooms Section */
+    .rooms-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+    }
+
+    .rooms-card:hover {
+        box-shadow: var(--shadow-medium);
+    }
+
+    .rooms-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 16px 16px 0 0 !important;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .rooms-card .card-header h5 {
+        font-weight: 700;
+        font-size: 1.25rem;
+    }
+
+    .room-list-item {
+        border: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1.25rem 1.5rem;
+        transition: var(--transition);
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+    .room-list-item:hover {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        transform: translateX(5px);
+        box-shadow: var(--shadow-light);
+    }
+
+    .room-list-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .room-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-gradient);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .room-icon i {
+        color: white;
+        font-size: 1.2rem;
+    }
+
+    /* Favorite Rooms */
+    .favorite-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+
+    .favorite-card:hover {
+        box-shadow: var(--shadow-medium);
+    }
+
+    .favorite-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 16px 16px 0 0 !important;
+    }
+
+    .favorite-room-card {
+        border: 2px solid #ffc107;
+        border-radius: 12px;
+        transition: var(--transition);
+        height: 100%;
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+    }
+
+    .favorite-room-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(255, 193, 7, 0.3);
+        border-color: #ffb300;
+    }
+
+    .favorite-room-card .card-title {
+        font-weight: 600;
+        color: #856404;
+    }
+
+    /* Widget Cards */
+    .widget-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+
+    .widget-card:hover {
+        box-shadow: var(--shadow-medium);
+    }
+
+    .widget-card .card-header {
+        border-radius: 16px 16px 0 0 !important;
+        padding: 1.25rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .widget-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .ai-card .card-header {
+        background: var(--info-gradient);
+        color: white;
+    }
+
+    .actions-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .activity-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    /* Buttons */
+    .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 10px 20px;
+        transition: var(--transition);
+        border: none;
+    }
+
+    .btn-primary {
+        background: var(--primary-gradient);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-outline-primary {
+        border: 2px solid #667eea;
+        color: #667eea;
+        background: transparent;
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--primary-gradient);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-info {
+        background: var(--info-gradient);
+        box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .btn-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(23, 162, 184, 0.4);
+    }
+
+    .btn-outline-info {
+        border: 2px solid #17a2b8;
+        color: #17a2b8;
+        background: transparent;
+    }
+
+    .btn-outline-info:hover {
+        background: var(--info-gradient);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .btn-warning {
+        background: var(--warning-gradient);
+        box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+        color: #212529;
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(255, 193, 7, 0.4);
+        color: #212529;
+    }
+
+    /* Quick Actions */
+    .quick-action-btn {
+        text-align: left;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        transition: var(--transition);
+        font-weight: 500;
+    }
+
+    .quick-action-btn:hover {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        transform: translateX(5px);
+    }
+
+    /* Activity List */
+    .activity-item {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        transition: var(--transition);
+    }
+
+    .activity-item:hover {
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 8px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Badges */
+    .badge {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 6px 12px;
+    }
+
+    /* Modal Styling */
+    .modal-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 16px 16px 0 0 !important;
+        padding: 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 0 0 16px 16px;
+        padding: 1.5rem;
+    }
+
+    /* Form Controls */
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 10px 15px;
+        transition: var(--transition);
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .fade-in-up {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .welcome-card .col-md-4 {
+            display: none;
+        }
+        
+        .room-list-item {
+            padding: 1rem;
+        }
+        
+        .widget-card .card-body {
+            padding: 1rem;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<div class="row fade-in-up">
     <!-- Welcome Card -->
     <div class="col-12 mb-4">
-        <div class="card border-0 shadow-sm">
+        <div class="card welcome-card">
             <div class="card-body p-4">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h3 class="card-title text-primary mb-3">Welcome to Chat Application!</h3>
+                        <h3 class="card-title mb-3">Welcome to Chat Application!</h3>
                         <p class="card-text text-muted lead">Connect with friends, join exciting chat rooms, or have intelligent conversations with our AI assistant. Start chatting now!</p>
                         <div class="mt-4">
                             <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#createRoomModal">
@@ -24,7 +462,7 @@
                         </div>
                     </div>
                     <div class="col-md-4 text-center">
-                        <div class="position-relative">
+                        <div class="welcome-icon">
                             <i class="fas fa-comments text-primary opacity-25" style="font-size: 8rem;"></i>
                             <div class="position-absolute top-50 start-50 translate-middle">
                                 <i class="fas fa-robot text-info" style="font-size: 3rem;"></i>
@@ -38,7 +476,7 @@
 
     <!-- Quick Stats Cards -->
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow-sm h-100 py-2">
+        <div class="card stats-card border-left-primary h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
@@ -56,7 +494,7 @@
     </div>
 
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow-sm h-100 py-2">
+        <div class="card stats-card border-left-success h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
@@ -74,7 +512,7 @@
     </div>
 
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow-sm h-100 py-2">
+        <div class="card stats-card border-left-info h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
@@ -92,7 +530,7 @@
     </div>
 
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow-sm h-100 py-2">
+        <div class="card stats-card border-left-warning h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
@@ -112,8 +550,8 @@
     <!-- Main Content Area -->
     <div class="col-lg-8">
         <!-- Chat Rooms Section -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
+        <div class="card rooms-card mb-4">
+            <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 text-primary">
                         <i class="fas fa-hashtag me-2"></i>Available Chat Rooms
@@ -125,11 +563,11 @@
                 {% if rooms %}
                     <div class="list-group list-group-flush">
                         {% for room in rooms %}
-                            <a href="{% url 'chat_app:room' room.name %}" class="list-group-item list-group-item-action py-3">
+                            <a href="{% url 'chat_app:room' room.name %}" class="list-group-item room-list-item">
                                 <div class="d-flex w-100 justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-primary rounded-circle p-2 me-3">
-                                            <i class="fas fa-comments text-white"></i>
+                                        <div class="room-icon me-3">
+                                            <i class="fas fa-comments"></i>
                                         </div>
                                         <div>
                                             <h6 class="mb-1">{{ room.name }}</h6>
@@ -172,8 +610,8 @@
 
         <!-- Favorite Rooms Section -->
         {% if favorite_rooms %}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
+        <div class="card favorite-card mb-4">
+            <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 text-warning">
                         <i class="fas fa-star me-2"></i>Your Favorite Rooms
@@ -185,10 +623,10 @@
                 <div class="row">
                     {% for favorite in favorite_rooms %}
                         <div class="col-md-6 mb-3">
-                            <div class="card border-warning h-100">
+                            <div class="card favorite-room-card h-100">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="card-title mb-0 text-warning">
+                                        <h6 class="card-title mb-0">
                                             <i class="fas fa-hashtag me-1"></i>{{ favorite.room.name }}
                                         </h6>
                                         <i class="fas fa-star text-warning"></i>
@@ -217,8 +655,8 @@
     <!-- Sidebar Widgets -->
     <div class="col-lg-4">
         <!-- AI Chat Widget -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-gradient-info text-white">
+        <div class="card widget-card ai-card mb-4">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI ChatGPT Assistant</h5>
             </div>
             <div class="card-body">
@@ -235,22 +673,22 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white">
+        <div class="card widget-card actions-card mb-4">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#createRoomModal">
+                    <button class="btn quick-action-btn" data-bs-toggle="modal" data-bs-target="#createRoomModal">
                         <i class="fas fa-plus me-2"></i>Create New Room
                     </button>
-                    <a href="{% url 'chat_app:direct_messages' %}" class="btn btn-outline-success text-start">
+                    <a href="{% url 'chat_app:direct_messages' %}" class="btn quick-action-btn">
                         <i class="fas fa-envelope me-2"></i>Direct Messages
                     </a>
-                    <a href="{% url 'chat_app:group_chats' %}" class="btn btn-outline-info text-start">
+                    <a href="{% url 'chat_app:group_chats' %}" class="btn quick-action-btn">
                         <i class="fas fa-users me-2"></i>Group Chats
                     </a>
-                    <a href="{% url 'chat_app:settings' %}" class="btn btn-outline-warning text-start">
+                    <a href="{% url 'chat_app:settings' %}" class="btn quick-action-btn">
                         <i class="fas fa-cog me-2"></i>Settings
                     </a>
                 </div>
@@ -258,14 +696,14 @@
         </div>
 
         <!-- Recent Activity -->
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white">
+        <div class="card widget-card activity-card">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
             </div>
             <div class="card-body">
                 <div class="list-group list-group-flush">
                     {% for room in rooms|slice:":3" %}
-                    <div class="list-group-item px-0 border-0">
+                    <div class="activity-item">
                         <div class="d-flex w-100 justify-content-between">
                             <small class="text-muted">New room created</small>
                             <small class="text-muted">{{ room.created_at|timesince }} ago</small>
@@ -274,7 +712,7 @@
                     </div>
                     {% endfor %}
                     {% if user.message_set.last %}
-                    <div class="list-group-item px-0 border-0">
+                    <div class="activity-item">
                         <div class="d-flex w-100 justify-content-between">
                             <small class="text-muted">Your last message</small>
                             <small class="text-muted">{{ user.message_set.last.timestamp|timesince }} ago</small>
@@ -282,7 +720,7 @@
                         <p class="mb-1 small">"{{ user.message_set.last.content|truncatewords:5 }}"</p>
                     </div>
                     {% endif %}
-                    <div class="list-group-item px-0 border-0">
+                    <div class="activity-item">
                         <div class="d-flex w-100 justify-content-between">
                             <small class="text-muted">Account</small>
                             <small class="text-muted">{{ user.date_joined|timesince }} ago</small>
@@ -334,11 +772,9 @@
 
 {% block scripts %}
 <script>
-   
     document.getElementById('startAIChat').addEventListener('click', function() {
-        // Redirect to AI Assistant page
         window.location.href = "{% url 'chat_app:ai_assistant' %}";
-    })
+    });
 
     document.getElementById('askQuestion').addEventListener('click', function() {
         const question = prompt('What would you like to ask our AI assistant?');
@@ -348,7 +784,7 @@
     });
 
     document.getElementById('exploreRooms').addEventListener('click', function() {
-        document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
+        document.querySelector('.rooms-card').scrollIntoView({ behavior: 'smooth' });
     });
 
     // Auto-focus on room name input when modal opens
@@ -357,7 +793,7 @@
     });
 
     // Quick action buttons functionality
-    document.querySelectorAll('.btn-outline-primary').forEach(btn => {
+    document.querySelectorAll('.quick-action-btn').forEach(btn => {
         if (btn.textContent.includes('Create New Room')) {
             btn.addEventListener('click', function() {
                 document.getElementById('createRoomModal').classList.add('show');

@@ -4,18 +4,51 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 class Room(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    ROOM_TYPES = (
+        ('direct', 'Direct Message'),
+        ('group', 'Group Chat'),
+    )
+    
+    PRIVACY_CHOICES = (
+        ('public', 'Public'),
+        ('private', 'Private'),
+    )
+    
+    CATEGORY_CHOICES = (
+        ('general', 'General'),
+        ('work', 'Work'),
+        ('friends', 'Friends'),
+        ('family', 'Family'),
+        ('project', 'Project'),
+        ('hobby', 'Hobby'),
+        ('education', 'Education'),
+        ('other', 'Other'),
+    )
+    
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    room_type = models.CharField(max_length=10, choices=ROOM_TYPES, default='group')
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='general')
+    privacy = models.CharField(max_length=10, choices=PRIVACY_CHOICES, default='public')
+    allow_invites = models.BooleanField(default=True)
+    moderate_content = models.BooleanField(default=False)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_rooms')
+    members = models.ManyToManyField(User, related_name='chat_rooms')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_room_type_display()})"
+    
+    class Meta:
+        ordering = ['-updated_at']
 
 class Message(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now)
+    is_system_message = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['timestamp']
@@ -23,7 +56,6 @@ class Message(models.Model):
     def __str__(self):
         return f'{self.user.username}: {self.content[:20]}'
 
-# NEW model for direct messages
 class DirectMessage(models.Model):
     sender = models.ForeignKey(User, related_name='sent_direct_messages', on_delete=models.CASCADE)
     receiver = models.ForeignKey(User, related_name='received_direct_messages', on_delete=models.CASCADE)
@@ -39,7 +71,7 @@ class DirectMessage(models.Model):
 
     def __str__(self):
         return f'DM {self.sender.username} -> {self.receiver.username}: {self.content[:20]}'
-    
+
 class ChatSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions')
     title = models.CharField(max_length=255, blank=True)
@@ -60,3 +92,14 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender}: {self.content[:30]}"
+
+class GroupInvitation(models.Model):
+    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_invitations')
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_invitations')
+    token = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_accepted = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Invitation to {self.room.name} for {self.invited_user.username}"

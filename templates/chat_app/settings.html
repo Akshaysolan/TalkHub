@@ -5,14 +5,300 @@
 {% block header_subtitle %}<small class="opacity-75">Manage your account preferences</small>{% endblock %}
 
 {% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        --warning-gradient: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+        --danger-gradient: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s ease;
+    }
+
+    /* Main Card Styling */
+    .settings-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    }
+
+    .settings-card:hover {
+        box-shadow: var(--shadow-medium);
+        transform: translateY(-2px);
+    }
+
+    .settings-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        border-radius: 20px 20px 0 0 !important;
+        padding: 1.5rem 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .settings-card .card-header h5 {
+        font-weight: 700;
+        font-size: 1.3rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+
+    .settings-card .card-body {
+        padding: 2rem;
+    }
+
+    /* Form Styling */
+    .form-label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 0.95rem;
+        transition: var(--transition);
+        background: white;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+        background: white;
+    }
+
+    .form-control:read-only {
+        background-color: #f8f9fa;
+        border-color: #e9ecef;
+        color: #6c757d;
+    }
+
+    .form-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    /* Email Field with Edit Button */
+    .email-field-container {
+        position: relative;
+    }
+
+    .email-edit-btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    }
+
+    .email-edit-btn:hover {
+        transform: translateY(-50%) scale(1.05);
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+    }
+
+    .email-edit-btn:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+
+    /* Status Indicators */
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 12px;
+        border-left: 4px solid #667eea;
+    }
+
+    .status-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-gradient);
+        color: white;
+        font-size: 1rem;
+    }
+
+    .status-content {
+        flex: 1;
+    }
+
+    .status-title {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .status-subtitle {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    /* Badge Styling */
+    .badge {
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .badge.bg-success {
+        background: var(--success-gradient) !important;
+    }
+
+    .badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%) !important;
+    }
+
+    /* Button Styling */
+    .btn-primary {
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        padding: 12px 24px;
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        transition: var(--transition);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Edit Mode Styling */
+    .edit-mode .form-control {
+        border-color: #667eea;
+        background: white;
+        color: #2c3e50;
+    }
+
+    .edit-mode .email-edit-btn {
+        background: var(--success-gradient);
+    }
+
+    /* Animation for transitions */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .settings-card .card-body > * {
+        animation: slideIn 0.5s ease-out;
+    }
+
+    .settings-card .card-body > *:nth-child(1) { animation-delay: 0.1s; }
+    .settings-card .card-body > *:nth-child(2) { animation-delay: 0.2s; }
+    .settings-card .card-body > *:nth-child(3) { animation-delay: 0.3s; }
+    .settings-card .card-body > *:nth-child(4) { animation-delay: 0.4s; }
+    .settings-card .card-body > *:nth-child(5) { animation-delay: 0.5s; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .settings-card .card-body {
+            padding: 1.5rem;
+        }
+        
+        .email-edit-btn {
+            position: relative;
+            right: auto;
+            top: auto;
+            transform: none;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        
+        .status-indicator {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.5rem;
+        }
+        
+        .status-icon {
+            align-self: center;
+        }
+        
+        .row .col-md-6 {
+            margin-bottom: 1rem;
+        }
+    }
+
+    /* Loading State */
+    .loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .loading::after {
+        content: '...';
+        animation: loadingDots 1.5s infinite;
+    }
+
+    @keyframes loadingDots {
+        0%, 20% { content: '.'; }
+        40% { content: '..'; }
+        60%, 100% { content: '...'; }
+    }
+
+    /* Success Message */
+    .success-message {
+        background: var(--success-gradient);
+        color: white;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        animation: slideIn 0.5s ease-out;
+        display: none;
+    }
+
+    .success-message.show {
+        display: block;
+    }
+</style>
+
 <div class="row">
     <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
+        <div class="card settings-card">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-user-cog me-2"></i>Profile Settings</h5>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" id="profileForm">
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -22,8 +308,13 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control" value="{{ user.email }}" readonly>
-                            <div class="form-text">Contact admin to change email</div>
+                            <div class="email-field-container">
+                                <input type="email" class="form-control" id="emailInput" value="{{ user.email }}" readonly>
+                                <button type="button" class="btn email-edit-btn" id="emailEditBtn">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </button>
+                            </div>
+                            <div class="form-text" id="emailHelpText">Contact admin to change email</div>
                         </div>
                     </div>
                     
@@ -34,27 +325,46 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Account Status</label>
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-circle text-success me-2"></i>
-                            <span>Active</span>
-                            <small class="text-muted ms-2">Member since {{ user.date_joined|date:"M d, Y" }}</small>
+                        <div class="status-indicator">
+                            <div class="status-icon">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                            <div class="status-content">
+                                <div class="status-title">Account Status</div>
+                                <div class="status-subtitle">
+                                    <i class="fas fa-circle text-success me-1"></i>
+                                    Active • Member since {{ user.date_joined|date:"M d, Y" }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Online Status</label>
-                        <div>
-                            {% if profile.is_online %}
-                                <span class="badge bg-success">Online</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Offline</span>
-                                <small class="text-muted ms-2">Last seen {{ profile.last_seen|timesince }} ago</small>
-                            {% endif %}
+                        <div class="status-indicator">
+                            <div class="status-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="status-content">
+                                <div class="status-title">Online Status</div>
+                                <div class="status-subtitle">
+                                    {% if profile.is_online %}
+                                        <span class="badge bg-success me-2">Online</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary me-2">Offline</span>
+                                    {% endif %}
+                                    Last seen {{ profile.last_seen|timesince }} ago
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">
+                    <!-- Success Message -->
+                    <div class="success-message" id="successMessage">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="successText">Changes saved successfully!</span>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
                         <i class="fas fa-save me-2"></i>Save Changes
                     </button>
                 </form>
@@ -62,6 +372,141 @@
         </div>
     </div>
     
-    <!-- Rest of the settings template remains the same -->
+    <!-- Additional Settings Cards can be added here -->
+    <div class="col-lg-4">
+        <div class="card settings-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Notifications</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="messageNotifications" checked>
+                    <label class="form-check-label" for="messageNotifications">
+                        New Message Notifications
+                    </label>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="emailNotifications">
+                    <label class="form-check-label" for="emailNotifications">
+                        Email Notifications
+                    </label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="pushNotifications" checked>
+                    <label class="form-check-label" for="pushNotifications">
+                        Push Notifications
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card settings-card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                    <button class="btn btn-outline-warning">
+                        <i class="fas fa-history me-2"></i>Login Activity
+                    </button>
+                    <button class="btn btn-outline-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const emailInput = document.getElementById('emailInput');
+        const emailEditBtn = document.getElementById('emailEditBtn');
+        const emailHelpText = document.getElementById('emailHelpText');
+        const profileForm = document.getElementById('profileForm');
+        const saveBtn = document.getElementById('saveBtn');
+        const successMessage = document.getElementById('successMessage');
+        const successText = document.getElementById('successText');
+
+        let isEditingEmail = false;
+
+        // Email Edit Button Click Handler
+        emailEditBtn.addEventListener('click', function() {
+            if (!isEditingEmail) {
+                // Enter edit mode
+                isEditingEmail = true;
+                emailInput.readOnly = false;
+                emailInput.focus();
+                emailInput.classList.add('edit-mode');
+                emailEditBtn.innerHTML = '<i class="fas fa-check me-1"></i>Save';
+                emailEditBtn.style.background = 'var(--success-gradient)';
+                emailHelpText.textContent = 'Enter your new email address';
+            } else {
+                // Save email changes
+                isEditingEmail = false;
+                emailInput.readOnly = true;
+                emailInput.classList.remove('edit-mode');
+                emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+                emailEditBtn.style.background = 'var(--primary-gradient)';
+                emailHelpText.textContent = 'Email updated successfully!';
+                
+                // Show success message
+                successText.textContent = 'Email updated successfully!';
+                successMessage.classList.add('show');
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                }, 3000);
+            }
+        });
+
+        // Form submission handler
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            saveBtn.classList.add('loading');
+            saveBtn.disabled = true;
+            
+            // Simulate API call (replace with actual form submission)
+            setTimeout(() => {
+                // Show success message
+                successText.textContent = 'Profile updated successfully!';
+                successMessage.classList.add('show');
+                
+                // Reset loading state
+                saveBtn.classList.remove('loading');
+                saveBtn.disabled = false;
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                emailHelpText.textContent = 'Contact admin to change email';
+                isEditingEmail = false;
+                    emailInput.readOnly = true;
+                    emailInput.classList.remove('edit-mode');
+                    emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+                    emailEditBtn.style.background = 'var(--primary-gradient)';
+                }, 3000);
+            }, 1500);
+        });
+
+        // Escape key to cancel edit
+        emailInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isEditingEmail) {
+                isEditingEmail = false;
+                emailInput.readOnly = true;
+                emailInput.value = '{{ user.email }}';
+                emailInput.classList.remove('edit-mode');
+                emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
+                emailEditBtn.style.background = 'var(--primary-gradient)';
+                emailHelpText.textContent = 'Contact admin to change email';
+            }
+        });
+    });
+</script>
 {% endblock %}

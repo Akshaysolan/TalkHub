@@ -7,7 +7,8 @@ from django.utils import timezone
 from .models import Room, Message, DirectMessage
 from django.contrib.auth.models import User
 from django.db.models import Q, Max, Count
-
+from django.contrib import messages
+import json
 
 import os
 from .ai_chat import ask_gemini
@@ -449,3 +450,105 @@ def ai_delete_all_sessions(request):
         return JsonResponse({"error": "POST only"}, status=400)
     ChatSession.objects.filter(user=request.user).delete()
     return JsonResponse({"deleted_all": True})
+
+
+
+@login_required
+def group_chats(request):
+    """Display user's group chats"""
+    # Get rooms where user is a member
+    user_rooms = Room.objects.filter(
+        members=request.user,
+        room_type='group'
+    ).distinct().prefetch_related('members', 'message_set')
+    
+    # Add user_count and message_count to each room
+    for room in user_rooms:
+        room.user_count = room.members.count()
+        room.message_count = room.message_set.count()
+    
+    context = {
+        'user_rooms': user_rooms,
+    }
+    return render(request, 'chat_app/group_chats.html', context)
+
+@login_required
+def create_group(request):
+    """Create a new group chat"""
+    if request.method == 'POST':
+        group_name = request.POST.get('group_name', '').strip()
+        description = request.POST.get('description', '').strip()
+        category = request.POST.get('category', 'general')
+        privacy = request.POST.get('privacy', 'public')
+        allow_invites = request.POST.get('allow_invites') == 'on'
+        moderate_content = request.POST.get('moderate_content') == 'on'
+        
+        # Validate group name
+        if not group_name:
+            messages.error(request, 'Group name is required.')
+            return redirect('chat_app:group_chats')
+        
+        if len(group_name) < 3:
+            messages.error(request, 'Group name must be at least 3 characters long.')
+            return redirect('chat_app:group_chats')
+        
+        if len(group_name) > 50:
+            messages.error(request, 'Group name cannot exceed 50 characters.')
+            return redirect('chat_app:group_chats')
+        
+        # Check if room name already exists
+        if Room.objects.filter(name=group_name).exists():
+            messages.error(request, 'A group with this name already exists. Please choose a different name.')
+            return redirect('chat_app:group_chats')
+        
+        try:
+            # Create the group room
+            room = Room.objects.create(
+                name=group_name,
+                description=description,
+                room_type='group',
+                category=category,
+                privacy=privacy,
+                allow_invites=allow_invites,
+                moderate_content=moderate_content,
+                created_by=request.user
+            )
+            
+            # Add creator as first member
+            room.members.add(request.user)
+            
+            # Create welcome message
+            Message.objects.create(
+                room=room,
+                user=request.user,
+                content=f"Welcome to {group_name}! This group was created by {request.user.username}."
+            )
+            
+            messages.success(request, f'Group "{group_name}" created successfully!')
+            return redirect('chat_app:room', room_name=room.name)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating group: {str(e)}')
+            return redirect('chat_app:group_chats')
+    
+    return redirect('chat_app:group_chats')
+
+@login_required
+def start_group_chat(request, room_name):
+    """Start a group chat session"""
+    room = get_object_or_404(Room, name=room_name, room_type='group')
+    
+    # Check if user is a member of the group
+    if not room.members.filter(id=request.user.id).exists():
+        messages.error(request, 'You are not a member of this group.')
+        return redirect('chat_app:group_chats')
+    
+    # Get recent messages
+    messages_list = Message.objects.filter(room=room).order_by('timestamp')[:50]
+    
+    context = {
+        'room': room,
+        'messages': messages_list,
+        'room_name': room_name,
+    }
+    return render(request, 'chat_app/room.html', context)

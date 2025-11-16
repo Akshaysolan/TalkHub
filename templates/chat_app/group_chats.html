@@ -5,42 +5,446 @@
 {% block header_subtitle %}<small class="opacity-75">Your active group conversations</small>{% endblock %}
 
 {% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --info-gradient: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        --success-gradient: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        --group-gradient: linear-gradient(135deg, #667eea 0%, #17a2b8 100%);
+        --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
+        --shadow-hover: 0 12px 35px rgba(102, 126, 234, 0.2);
+        --transition: all 0.3s ease;
+    }
+
+    /* Main Card Styling */
+    .groups-main-card {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    }
+
+    .groups-main-card:hover {
+        box-shadow: var(--shadow-medium);
+        transform: translateY(-2px);
+    }
+
+    .groups-main-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        border-radius: 20px 20px 0 0 !important;
+        padding: 1.5rem 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .groups-main-card .card-header h5 {
+        font-weight: 700;
+        font-size: 1.3rem;
+        background: var(--group-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+
+    .groups-main-card .card-body {
+        padding: 2rem;
+    }
+
+    /* Create Group Button */
+    .create-group-btn {
+        background: var(--success-gradient);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .create-group-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+
+    /* Group Count Badge */
+    .group-count-badge {
+        background: var(--primary-gradient);
+        color: white;
+        border-radius: 12px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Group Card Styling */
+    .group-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        background: white;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .group-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--group-gradient);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .group-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-hover);
+    }
+
+    .group-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .group-card .card-body {
+        padding: 1.75rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .group-card .card-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #2c3e50;
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .group-card .card-text {
+        color: #6c757d;
+        line-height: 1.5;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .group-card .card-footer {
+        background: transparent;
+        border-top: 1px solid rgba(102, 126, 234, 0.1);
+        padding: 1.25rem 1.75rem;
+    }
+
+    /* Room Header */
+    .room-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .room-name {
+        flex: 1;
+        font-weight: 700;
+    }
+
+    /* Owner Badge */
+    .owner-badge {
+        background: var(--info-gradient);
+        color: white;
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
+        margin-left: 10px;
+    }
+
+    /* Room Stats */
+    .room-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .room-stats small {
+        color: #6c757d;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .room-stats i {
+        color: #667eea;
+        font-size: 0.8rem;
+    }
+
+    /* Button Styling */
+    .btn-primary {
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        transition: var(--transition);
+        width: 100%;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    /* Empty State Styling */
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        border-radius: 16px;
+        margin: 1rem 0;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #667eea;
+        margin-bottom: 1.5rem;
+        opacity: 0.7;
+        filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.2));
+    }
+
+    .empty-state h5 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        color: #6c757d;
+        margin-bottom: 2rem;
+        font-size: 1rem;
+    }
+
+    /* Grid Layout */
+    .groups-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+
+    /* Icon Styling */
+    .room-icon {
+        color: #667eea;
+        font-size: 1rem;
+        margin-right: 6px;
+    }
+
+    /* Hover Effects */
+    .group-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.05), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .group-card:hover::after {
+        left: 100%;
+    }
+
+    /* Modal Styling */
+    .create-group-modal .modal-content {
+        border: none;
+        border-radius: 20px;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .create-group-modal .modal-header {
+        background: var(--success-gradient);
+        color: white;
+        border-radius: 20px 20px 0 0;
+        border: none;
+        padding: 1.5rem 2rem;
+    }
+
+    .create-group-modal .modal-body {
+        padding: 2rem;
+    }
+
+    .create-group-modal .form-control {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 12px 16px;
+        transition: var(--transition);
+    }
+
+    .create-group-modal .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    /* Animation for cards */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .group-card {
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    .group-card:nth-child(1) { animation-delay: 0.1s; }
+    .group-card:nth-child(2) { animation-delay: 0.2s; }
+    .group-card:nth-child(3) { animation-delay: 0.3s; }
+    .group-card:nth-child(4) { animation-delay: 0.4s; }
+    .group-card:nth-child(5) { animation-delay: 0.5s; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .groups-main-card .card-body {
+            padding: 1.5rem 1rem;
+        }
+        
+        .groups-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .group-card {
+            margin-bottom: 0;
+        }
+        
+        .room-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .owner-badge {
+            margin-left: 0;
+            align-self: flex-start;
+        }
+        
+        .room-stats {
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+        
+        .room-stats small {
+            font-size: 0.8rem;
+        }
+        
+        .empty-state {
+            padding: 3rem 1.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+        }
+        
+        .create-group-modal .modal-body {
+            padding: 1.5rem;
+        }
+    }
+
+    /* Loading animation */
+    .group-card.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    /* Status indicators */
+    .active-indicator {
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+</style>
+
 <div class="row">
     <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Your Group Chats</h5>
-                <span class="badge bg-primary">{{ user_rooms.count }} groups</span>
+        <div class="card groups-main-card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Your Group Chats</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="group-count-badge">{{ user_rooms.count }} groups</span>
+                        <button class="btn create-group-btn" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                            <i class="fas fa-plus-circle"></i>
+                            Create Group
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 {% if user_rooms %}
-                    <div class="row">
+                    <div class="groups-grid">
                         {% for room in user_rooms %}
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <div class="card h-100">
+                            <div class="group-card-wrapper">
+                                <div class="card group-card">
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <h6 class="card-title mb-0">
-                                                <i class="fas fa-hashtag text-muted me-1"></i>{{ room.name }}
+                                        <div class="room-header">
+                                            <h6 class="card-title room-name">
+                                                <i class="fas fa-hashtag room-icon"></i>{{ room.name }}
                                             </h6>
                                             {% if room.created_by == request.user %}
-                                                <span class="badge bg-info">Owner</span>
+                                                <span class="owner-badge">Owner</span>
                                             {% endif %}
                                         </div>
                                         {% if room.description %}
-                                            <p class="card-text text-muted small">{{ room.description }}</p>
+                                            <p class="card-text">{{ room.description }}</p>
                                         {% endif %}
-                                        <div class="d-flex justify-content-between align-items-center mt-3">
-                                            <small class="text-muted">
-                                                <i class="fas fa-users me-1"></i>{{ room.user_count }} members
+                                        <div class="room-stats">
+                                            <small>
+                                                <i class="fas fa-users"></i>
+                                                {{ room.user_count }} members
                                             </small>
-                                            <small class="text-muted">
-                                                <i class="fas fa-comment me-1"></i>{{ room.message_count }} messages
+                                            <small>
+                                                <i class="fas fa-comment"></i>
+                                                {{ room.message_count }} messages
                                             </small>
                                         </div>
                                     </div>
-                                    <div class="card-footer bg-transparent">
-                                        <a href="{% url 'chat_app:room' room.name %}" class="btn btn-primary btn-sm w-100">
+                                    <div class="card-footer">
+                                        <a href="{% url 'chat_app:room' room.name %}" class="btn btn-primary">
                                             <i class="fas fa-door-open me-1"></i>Enter Chat
                                         </a>
                                     </div>
@@ -49,17 +453,173 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                        <h5 class="text-muted">No group chats yet</h5>
-                        <p class="text-muted">Join or create a group chat to start collaborating</p>
-                        <a href="{% url 'chat_app:index' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Explore Rooms
-                        </a>
+                    <div class="empty-state">
+                        <i class="fas fa-users empty-state-icon"></i>
+                        <h5>No group chats yet</h5>
+                        <p>Create your first group chat to start collaborating with others</p>
+                        <button class="btn create-group-btn" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                            <i class="fas fa-plus-circle me-2"></i>Create Your First Group
+                        </button>
                     </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<!-- Create Group Modal -->
+<div class="modal fade create-group-modal" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-users me-2"></i>Create New Group Chat
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'chat_app:create_group' %}" id="createGroupForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="groupName" class="form-label">Group Name *</label>
+                            <input type="text" class="form-control" id="groupName" name="group_name" required 
+                                   placeholder="Enter group name" maxlength="50">
+                            <div class="form-text">Choose a unique name for your group (max 50 characters)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="groupCategory" class="form-label">Category</label>
+                            <select class="form-control" id="groupCategory" name="category">
+                                <option value="">General</option>
+                                <option value="work">Work</option>
+                                <option value="friends">Friends</option>
+                                <option value="family">Family</option>
+                                <option value="project">Project</option>
+                                <option value="hobby">Hobby</option>
+                                <option value="education">Education</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="groupDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="groupDescription" name="description" rows="3" 
+                                  placeholder="Describe the purpose of this group..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Privacy Settings</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="privacy" id="publicGroup" value="public" checked>
+                            <label class="form-check-label" for="publicGroup">
+                                <i class="fas fa-globe me-2 text-success"></i>
+                                Public - Anyone can join
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="privacy" id="privateGroup" value="private">
+                            <label class="form-check-label" for="privateGroup">
+                                <i class="fas fa-lock me-2 text-warning"></i>
+                                Private - Invite only
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Additional Settings</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="allowInvites" name="allow_invites" checked>
+                            <label class="form-check-label" for="allowInvites">
+                                Allow members to invite others
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="moderateContent" name="moderate_content">
+                            <label class="form-check-label" for="moderateContent">
+                                Moderate content (approve messages before posting)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn create-group-btn">
+                        <i class="fas fa-plus-circle me-2"></i>Create Group
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add interactive hover effects
+    document.addEventListener('DOMContentLoaded', function() {
+        const groupCards = document.querySelectorAll('.group-card');
+        
+        groupCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Form validation
+        const createGroupForm = document.getElementById('createGroupForm');
+        const groupNameInput = document.getElementById('groupName');
+        
+        createGroupForm.addEventListener('submit', function(e) {
+            const groupName = groupNameInput.value.trim();
+            
+            if (groupName.length < 3) {
+                e.preventDefault();
+                showAlert('Group name must be at least 3 characters long.', 'danger');
+                groupNameInput.focus();
+                return;
+            }
+            
+            if (groupName.length > 50) {
+                e.preventDefault();
+                showAlert('Group name cannot exceed 50 characters.', 'danger');
+                groupNameInput.focus();
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = createGroupForm.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating...';
+            submitBtn.disabled = true;
+        });
+
+        // Auto-focus on group name input when modal opens
+        document.getElementById('createGroupModal').addEventListener('shown.bs.modal', function () {
+            document.getElementById('groupName').focus();
+        });
+
+        // Show alert function
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                <i class="fas fa-${type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const cardBody = document.querySelector('.groups-main-card .card-body');
+            cardBody.insertBefore(alertDiv, cardBody.firstChild);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+    });
+</script>
 {% endblock %}

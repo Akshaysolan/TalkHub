@@ -5,38 +5,316 @@
 {% block header_subtitle %}<small class="opacity-75">Your saved chat rooms</small>{% endblock %}
 
 {% block content %}
+<style>
+    :root {
+        --warning-gradient: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+        --warning-light: #fff9e6;
+        --warning-border: #ffd54f;
+        --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s ease;
+    }
+
+    /* Main Card Styling */
+    .favorites-main-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        overflow: hidden;
+    }
+
+    .favorites-main-card:hover {
+        box-shadow: var(--shadow-medium);
+    }
+
+    .favorites-main-card .card-header {
+        background: white;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 16px 16px 0 0 !important;
+        padding: 1.5rem;
+    }
+
+    .favorites-main-card .card-header h5 {
+        font-weight: 700;
+        font-size: 1.25rem;
+        background: var(--warning-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .favorites-main-card .card-body {
+        padding: 2rem;
+    }
+
+    /* Favorite Room Cards */
+    .favorite-room-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        transition: var(--transition);
+        background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .favorite-room-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--warning-gradient);
+    }
+
+    .favorite-room-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 30px rgba(255, 193, 7, 0.25);
+    }
+
+    .favorite-room-card .card-body {
+        padding: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .favorite-room-card .card-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #856404;
+        margin-bottom: 0.75rem;
+    }
+
+    .favorite-room-card .card-text {
+        color: #997404;
+        line-height: 1.5;
+        font-size: 0.9rem;
+    }
+
+    .favorite-room-card .card-footer {
+        background: transparent;
+        border-top: 1px solid rgba(255, 193, 7, 0.2);
+        padding: 1rem 1.5rem;
+    }
+
+    /* Star Icon Styling */
+    .star-icon {
+        color: #ffc107;
+        font-size: 1.2rem;
+        filter: drop-shadow(0 2px 4px rgba(255, 193, 7, 0.3));
+        transition: var(--transition);
+    }
+
+    .favorite-room-card:hover .star-icon {
+        transform: scale(1.2) rotate(15deg);
+    }
+
+    /* Room Header */
+    .room-header {
+        display: flex;
+        justify-content: between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .room-name {
+        flex: 1;
+        font-weight: 700;
+    }
+
+    /* Meta Information */
+    .room-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 193, 7, 0.2);
+    }
+
+    .room-meta small {
+        color: #997404;
+        font-weight: 500;
+    }
+
+    /* Button Styling */
+    .btn-warning {
+        background: var(--warning-gradient);
+        border: none;
+        border-radius: 10px;
+        color: #212529;
+        font-weight: 600;
+        padding: 8px 16px;
+        box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+        transition: var(--transition);
+    }
+
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(255, 193, 7, 0.4);
+        color: #212529;
+    }
+
+    .btn-outline-warning {
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        color: #856404;
+        font-weight: 600;
+        padding: 8px 16px;
+        background: transparent;
+        transition: var(--transition);
+    }
+
+    .btn-outline-warning:hover {
+        background: var(--warning-gradient);
+        color: #212529;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+    }
+
+    /* Empty State Styling */
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #ffc107;
+        margin-bottom: 1.5rem;
+        opacity: 0.7;
+        filter: drop-shadow(0 4px 8px rgba(255, 193, 7, 0.2));
+    }
+
+    .empty-state h5 {
+        color: #856404;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        color: #997404;
+        margin-bottom: 2rem;
+    }
+
+    /* Grid Layout */
+    .favorites-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
+    /* Animation for card removal */
+    @keyframes fadeOut {
+        from {
+            opacity: 1;
+            transform: scale(1);
+        }
+        to {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+    }
+
+    .fade-out {
+        animation: fadeOut 0.3s ease-out forwards;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .favorites-main-card .card-body {
+            padding: 1.5rem 1rem;
+        }
+        
+        .favorites-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .favorite-room-card {
+            margin-bottom: 0;
+        }
+        
+        .room-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+        
+        .room-meta small {
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Loading state for buttons */
+    .toggle-favorite.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .toggle-favorite.loading::after {
+        content: '...';
+        animation: loadingDots 1.5s infinite;
+    }
+
+    @keyframes loadingDots {
+        0%, 20% { content: '.'; }
+        40% { content: '..'; }
+        60%, 100% { content: '...'; }
+    }
+
+    /* Hover effects for cards */
+    .favorite-room-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .favorite-room-card:hover::after {
+        left: 100%;
+    }
+</style>
+
 <div class="row">
     <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
+        <div class="card favorites-main-card">
+            <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-star me-2"></i>Your Favorite Rooms</h5>
             </div>
             <div class="card-body">
                 {% if favorite_rooms %}
-                    <div class="row">
+                    <div class="favorites-grid">
                         {% for favorite in favorite_rooms %}
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <div class="card h-100 border-warning">
+                            <div class="favorite-room-card-wrapper">
+                                <div class="card favorite-room-card">
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <h6 class="card-title mb-0 text-warning">
+                                        <div class="room-header">
+                                            <h6 class="card-title room-name">
                                                 <i class="fas fa-hashtag me-1"></i>{{ favorite.room.name }}
                                             </h6>
-                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star star-icon"></i>
                                         </div>
                                         {% if favorite.room.description %}
-                                            <p class="card-text text-muted small">{{ favorite.room.description }}</p>
+                                            <p class="card-text">{{ favorite.room.description }}</p>
                                         {% endif %}
-                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div class="room-meta">
                                             <small class="text-muted">
-                                                Created by {{ favorite.room.created_by.username }}
+                                                <i class="fas fa-user me-1"></i>Created by {{ favorite.room.created_by.username }}
                                             </small>
                                             <small class="text-muted">
-                                                {{ favorite.room.created_at|date:"M d, Y" }}
+                                                <i class="fas fa-calendar me-1"></i>{{ favorite.room.created_at|date:"M d, Y" }}
                                             </small>
                                         </div>
                                     </div>
-                                    <div class="card-footer bg-transparent">
+                                    <div class="card-footer">
                                         <div class="d-grid gap-2">
                                             <a href="{% url 'chat_app:room' favorite.room.name %}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-door-open me-1"></i>Join Room
@@ -51,12 +329,12 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-star fa-4x text-muted mb-3"></i>
-                        <h5 class="text-muted">No favorite rooms yet</h5>
-                        <p class="text-muted">Start favoriting rooms to see them here</p>
+                    <div class="empty-state">
+                        <i class="fas fa-star empty-state-icon"></i>
+                        <h5>No favorite rooms yet</h5>
+                        <p>Start favoriting rooms to see them here</p>
                         <a href="{% url 'chat_app:index' %}" class="btn btn-warning">
-                            <i class="fas fa-plus me-2"></i>Explore Rooms
+                            <i class="fas fa-search me-2"></i>Explore Rooms
                         </a>
                     </div>
                 {% endif %}
@@ -71,13 +349,47 @@
     document.querySelectorAll('.toggle-favorite').forEach(button => {
         button.addEventListener('click', function() {
             const roomName = this.dataset.roomName;
+            const cardWrapper = this.closest('.favorite-room-card-wrapper');
+            
+            // Add loading state
+            this.classList.add('loading');
+            
             fetch(`{% url 'chat_app:room' 'ROOM_NAME' %}favorite/`.replace('ROOM_NAME', roomName))
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'removed') {
-                        this.closest('.col-md-6').remove();
+                        // Add fade-out animation
+                        cardWrapper.classList.add('fade-out');
+                        
+                        // Remove card after animation completes
+                        setTimeout(() => {
+                            cardWrapper.remove();
+                            
+                            // Check if no favorites left
+                            const remainingFavorites = document.querySelectorAll('.favorite-room-card-wrapper');
+                            if (remainingFavorites.length === 0) {
+                                // Reload page to show empty state
+                                location.reload();
+                            }
+                        }, 300);
                     }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.classList.remove('loading');
+                    alert('Error removing favorite. Please try again.');
                 });
+        });
+    });
+
+    // Add hover effects for cards
+    document.querySelectorAll('.favorite-room-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-8px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
         });
     });
 </script>
