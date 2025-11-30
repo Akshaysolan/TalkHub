@@ -551,3 +551,121 @@ def start_group_chat(request, room_name):
         'room_name': room_name,
     }
     return render(request, 'chat_app/room.html', context)
+
+
+#####
+# Add these imports at the top
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from .models import Profile  # Add this import
+
+# ... your other imports ...
+
+# Replace your current settings view with this:
+@login_required
+def settings(request):
+    try:
+        # Get or create profile
+        profile, created = Profile.objects.get_or_create(user=request.user)
+    except Exception as e:
+        # Fallback if Profile model has issues
+        profile = {
+            'bio': '',
+            'is_online': True,
+            'last_seen': timezone.now()
+        }
+    
+    if request.method == 'POST':
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return handle_ajax_request(request, profile)
+        else:
+            return handle_regular_request(request, profile)
+    
+    return render(request, 'chat_app/settings.html', {
+        'profile': profile
+    })
+
+def handle_ajax_request(request, profile):
+    """Handle AJAX form submission"""
+    try:
+        # Get form data
+        email = request.POST.get('email', '').strip()
+        bio = request.POST.get('bio', '').strip()
+        
+        response_data = {}
+        
+        # Validate and update email if changed
+        if email and email != request.user.email:
+            # Validate email format
+            validate_email(email)
+            
+            # Check if email already exists (excluding current user)
+            from django.contrib.auth.models import User
+            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': 'This email is already registered with another account.'
+                })
+            
+            # Update email
+            request.user.email = email
+            request.user.save()
+            response_data['new_email'] = request.user.email
+        
+        # Update bio if profile is a model instance
+        if hasattr(profile, 'save'):
+            profile.bio = bio
+            profile.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Profile updated successfully!',
+            **response_data
+        })
+        
+    except ValidationError as e:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please enter a valid email address.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'An error occurred: {str(e)}'
+        })
+
+def handle_regular_request(request, profile):
+    """Handle regular form submission (non-AJAX)"""
+    try:
+        email = request.POST.get('email', '').strip()
+        bio = request.POST.get('bio', '').strip()
+        
+        # Update bio if profile is a model instance
+        if hasattr(profile, 'save') and bio != getattr(profile, 'bio', ''):
+            profile.bio = bio
+            profile.save()
+            messages.success(request, 'Bio updated successfully!')
+        
+        # Update email if changed
+        if email and email != request.user.email:
+            try:
+                validate_email(email)
+                
+                # Check if email exists
+                from django.contrib.auth.models import User
+                if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                    messages.error(request, 'This email is already registered with another account.')
+                else:
+                    request.user.email = email
+                    request.user.save()
+                    messages.success(request, 'Email updated successfully!')
+                    
+            except ValidationError:
+                messages.error(request, 'Please enter a valid email address.')
+        
+        return redirect('chat_app:settings')
+        
+    except Exception as e:
+        messages.error(request, f'An error occurred: {str(e)}')
+        return redirect('chat_app:settings')

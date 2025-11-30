@@ -289,6 +289,21 @@
     .success-message.show {
         display: block;
     }
+
+    /* Error Message */
+    .error-message {
+        background: var(--danger-gradient);
+        color: white;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        animation: slideIn 0.5s ease-out;
+        display: none;
+    }
+
+    .error-message.show {
+        display: block;
+    }
 </style>
 
 <div class="row">
@@ -298,6 +313,16 @@
                 <h5 class="mb-0"><i class="fas fa-user-cog me-2"></i>Profile Settings</h5>
             </div>
             <div class="card-body">
+                <!-- Messages -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
                 <form method="post" id="profileForm">
                     {% csrf_token %}
                     <div class="row">
@@ -309,12 +334,12 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email</label>
                             <div class="email-field-container">
-                                <input type="email" class="form-control" id="emailInput" value="{{ user.email }}" readonly>
+                                <input type="email" class="form-control" id="emailInput" name="email" value="{{ user.email }}" readonly>
                                 <button type="button" class="btn email-edit-btn" id="emailEditBtn">
                                     <i class="fas fa-edit me-1"></i>Edit
                                 </button>
                             </div>
-                            <div class="form-text" id="emailHelpText">Contact admin to change email</div>
+                            <div class="form-text" id="emailHelpText">Click edit to change your email</div>
                         </div>
                     </div>
                     
@@ -363,6 +388,12 @@
                         <i class="fas fa-check-circle me-2"></i>
                         <span id="successText">Changes saved successfully!</span>
                     </div>
+
+                    <!-- Error Message -->
+                    <div class="error-message" id="errorMessage">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="errorText">Error saving changes. Please try again.</span>
+                    </div>
                     
                     <button type="submit" class="btn btn-primary" id="saveBtn">
                         <i class="fas fa-save me-2"></i>Save Changes
@@ -372,7 +403,7 @@
         </div>
     </div>
     
-    <!-- Additional Settings Cards can be added here -->
+    <!-- Additional Settings Cards -->
     <div class="col-lg-4">
         <div class="card settings-card mb-4">
             <div class="card-header">
@@ -429,9 +460,12 @@
         const profileForm = document.getElementById('profileForm');
         const saveBtn = document.getElementById('saveBtn');
         const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
         const successText = document.getElementById('successText');
+        const errorText = document.getElementById('errorText');
 
         let isEditingEmail = false;
+        let originalEmail = emailInput.value;
 
         // Email Edit Button Click Handler
         emailEditBtn.addEventListener('click', function() {
@@ -441,26 +475,20 @@
                 emailInput.readOnly = false;
                 emailInput.focus();
                 emailInput.classList.add('edit-mode');
-                emailEditBtn.innerHTML = '<i class="fas fa-check me-1"></i>Save';
-                emailEditBtn.style.background = 'var(--success-gradient)';
+                emailEditBtn.innerHTML = '<i class="fas fa-times me-1"></i>Cancel';
+                emailEditBtn.style.background = 'var(--danger-gradient)';
                 emailHelpText.textContent = 'Enter your new email address';
+                emailHelpText.style.color = '#667eea';
             } else {
-                // Save email changes
+                // Cancel edit mode
                 isEditingEmail = false;
                 emailInput.readOnly = true;
+                emailInput.value = originalEmail;
                 emailInput.classList.remove('edit-mode');
                 emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
                 emailEditBtn.style.background = 'var(--primary-gradient)';
-                emailHelpText.textContent = 'Email updated successfully!';
-                
-                // Show success message
-                successText.textContent = 'Email updated successfully!';
-                successMessage.classList.add('show');
-                
-                // Hide success message after 3 seconds
-                setTimeout(() => {
-                    successMessage.classList.remove('show');
-                }, 3000);
+                emailHelpText.textContent = 'Click edit to change your email';
+                emailHelpText.style.color = '#6c757d';
             }
         });
 
@@ -472,27 +500,66 @@
             saveBtn.classList.add('loading');
             saveBtn.disabled = true;
             
-            // Simulate API call (replace with actual form submission)
-            setTimeout(() => {
-                // Show success message
-                successText.textContent = 'Profile updated successfully!';
-                successMessage.classList.add('show');
-                
-                // Reset loading state
-                saveBtn.classList.remove('loading');
-                saveBtn.disabled = false;
-                
-                // Hide success message after 3 seconds
-                setTimeout(() => {
-                    successMessage.classList.remove('show');
-                emailHelpText.textContent = 'Contact admin to change email';
-                isEditingEmail = false;
+            // Create FormData object
+            const formData = new FormData(profileForm);
+            
+            // Send AJAX request
+            fetch('', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    successText.textContent = data.message || 'Profile updated successfully!';
+                    successMessage.classList.add('show');
+                    errorMessage.classList.remove('show');
+                    
+                    // Update original email
+                    originalEmail = data.new_email || emailInput.value;
+                    
+                    // Reset email field to read-only
+                    isEditingEmail = false;
                     emailInput.readOnly = true;
                     emailInput.classList.remove('edit-mode');
                     emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
                     emailEditBtn.style.background = 'var(--primary-gradient)';
-                }, 3000);
-            }, 1500);
+                    emailHelpText.textContent = 'Email updated successfully!';
+                    emailHelpText.style.color = '#28a745';
+                    
+                } else {
+                    // Show error message
+                    errorText.textContent = data.message || 'Error saving changes. Please try again.';
+                    errorMessage.classList.add('show');
+                    successMessage.classList.remove('show');
+                    
+                    // Reset to original email on error
+                    emailInput.value = originalEmail;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorText.textContent = 'Network error. Please try again.';
+                errorMessage.classList.add('show');
+                successMessage.classList.remove('show');
+            })
+            .finally(() => {
+                // Reset loading state
+                saveBtn.classList.remove('loading');
+                saveBtn.disabled = false;
+                
+                // Hide messages after 5 seconds
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                    errorMessage.classList.remove('show');
+                    emailHelpText.textContent = 'Click edit to change your email';
+                    emailHelpText.style.color = '#6c757d';
+                }, 5000);
+            });
         });
 
         // Escape key to cancel edit
@@ -500,11 +567,30 @@
             if (e.key === 'Escape' && isEditingEmail) {
                 isEditingEmail = false;
                 emailInput.readOnly = true;
-                emailInput.value = '{{ user.email }}';
+                emailInput.value = originalEmail;
                 emailInput.classList.remove('edit-mode');
                 emailEditBtn.innerHTML = '<i class="fas fa-edit me-1"></i>Edit';
                 emailEditBtn.style.background = 'var(--primary-gradient)';
-                emailHelpText.textContent = 'Contact admin to change email';
+                emailHelpText.textContent = 'Click edit to change your email';
+                emailHelpText.style.color = '#6c757d';
+            }
+        });
+
+        // Validate email on input
+        emailInput.addEventListener('blur', function() {
+            if (isEditingEmail) {
+                const email = emailInput.value.trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (email && !emailRegex.test(email)) {
+                    emailInput.style.borderColor = '#dc3545';
+                    emailHelpText.textContent = 'Please enter a valid email address';
+                    emailHelpText.style.color = '#dc3545';
+                } else {
+                    emailInput.style.borderColor = '#667eea';
+                    emailHelpText.textContent = 'Enter your new email address';
+                    emailHelpText.style.color = '#667eea';
+                }
             }
         });
     });
