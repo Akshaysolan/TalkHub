@@ -452,7 +452,6 @@ def ai_delete_all_sessions(request):
     return JsonResponse({"deleted_all": True})
 
 
-
 @login_required
 def group_chats(request):
     """Display user's group chats"""
@@ -460,12 +459,12 @@ def group_chats(request):
     user_rooms = Room.objects.filter(
         members=request.user,
         room_type='group'
-    ).distinct().prefetch_related('members', 'message_set')
+    ).distinct().prefetch_related('members', 'messages')
     
     # Add user_count and message_count to each room
     for room in user_rooms:
         room.user_count = room.members.count()
-        room.message_count = room.message_set.count()
+        room.message_count = room.messages.count()
     
     context = {
         'user_rooms': user_rooms,
