@@ -1,17 +1,23 @@
+# chat_project/settings.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
 
-
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-chat-app-secret-key-12345'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-chat-app-secret-key-12345'  # Change this in production
 
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']  # Added * for Docker
 
+# Application definition
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -47,14 +53,19 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                
             ],
         },
     },
 ]
 
+# WSGI for Django
 WSGI_APPLICATION = 'chat_project.wsgi.application'
+
+# ASGI for Channels
 ASGI_APPLICATION = 'chat_project.asgi.application'
 
+# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -62,6 +73,7 @@ DATABASES = {
     }
 }
 
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -77,15 +89,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 # Remove or comment out this line if you don't need custom static files
 # STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Channels configuration
@@ -100,4 +115,5 @@ LOGIN_URL = 'chat_app:login'
 LOGIN_REDIRECT_URL = 'chat_app:index'
 LOGOUT_REDIRECT_URL = 'chat_app:login'
 
+# Gemini API
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

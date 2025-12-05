@@ -5,6 +5,21 @@ from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    bio = models.TextField(max_length=500, blank=True)
+    is_online = models.BooleanField(default=False)
+    last_seen = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username}'s Profile"
+    
+    @property
+    def created_at(self):
+        """Return the user's creation date as a fallback"""
+        return self.user.date_joined
+
 class Room(models.Model):
     ROOM_TYPES = (
         ('direct', 'Direct Message'),
@@ -105,24 +120,19 @@ class GroupInvitation(models.Model):
     
     def __str__(self):
         return f"Invitation to {self.room.name} for {self.invited_user.username}"
-    
-#####
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.TextField(max_length=500, blank=True)
-    is_online = models.BooleanField(default=False)
-    last_seen = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"{self.user.username}'s Profile"
 
-# Signal to create profile when user is created - MOVE THESE OUTSIDE THE CLASS
+# Signal to create profile when user is created
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
+    """Create a Profile instance when a new User is created"""
     if created:
         Profile.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    if hasattr(instance, 'profile'):
+    """Save the profile when the User is saved"""
+    try:
         instance.profile.save()
+    except Profile.DoesNotExist:
+        # If for some reason profile doesn't exist, create it
+        Profile.objects.create(user=instance)

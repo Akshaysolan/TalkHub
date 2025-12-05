@@ -1,6 +1,8 @@
 {% extends 'chat_app/base.html' %}
 
 {% block title %}Chat - {{ room.name }}{% endblock %}
+{% block header_title %}{{ room.name }}{% endblock %}
+{% block header_subtitle %}<small class="opacity-75">Real-time group chat</small>{% endblock %}
 
 {% block content %}
 <div class="row">
