@@ -132,6 +132,159 @@
             margin: 15px 20px;
         }
 
+        /* Email Submenu Styles */
+        .email-submenu .nav-link {
+            padding: 8px 15px;
+            margin: 2px 0;
+            font-size: 0.9rem;
+        }
+
+        .email-submenu .nav-link i {
+            width: 18px;
+            margin-right: 10px;
+            font-size: 0.9rem;
+        }
+
+        .sidebar.collapsed .email-submenu {
+            display: none !important;
+        }
+
+        /* Email badge */
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+            border-radius: 10px;
+        }
+
+        /* Email specific styles for content area */
+        .email-container {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .email-container {
+            background: #1e1e1e;
+        }
+
+        .email-list-item {
+            padding: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        [data-theme="dark"] .email-list-item {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .email-list-item:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        [data-theme="dark"] .email-list-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .email-list-item.unread {
+            background: rgba(52, 152, 219, 0.1);
+            font-weight: 500;
+        }
+
+        [data-theme="dark"] .email-list-item.unread {
+            background: rgba(52, 152, 219, 0.2);
+        }
+
+        .email-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .email-preview {
+            flex: 1;
+        }
+
+        .email-subject {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .email-preview-text {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .email-time {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+
+        /* Compose email styles */
+        .compose-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .compose-toolbar {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .attachments-preview {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .attachment-item {
+            background: rgba(0,0,0,0.05);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+
+        [data-theme="dark"] .attachment-item {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Email view styles */
+        .email-view-header {
+            border-bottom: 2px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        [data-theme="dark"] .email-view-header {
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .email-view-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .email-body {
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
         /* Main Content Area */
         .main-content {
             margin-left: 250px;
@@ -564,7 +717,7 @@
             </a>
             
             <!-- AI Chat Section -->
-            <a class="nav-link" href="{% url 'chat_app:ai_assistant' %}" id="aiChatLink">
+            <a class="nav-link {% if request.resolver_match.url_name == 'ai_assistant' %}active{% endif %}" href="{% url 'chat_app:ai_assistant' %}" id="aiChatLink">
                 <i class="fas fa-robot"></i> <span>AI ChatGPT</span>
             </a>
 
@@ -581,6 +734,11 @@
             <!-- Favorites -->
             <a class="nav-link {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}" href="{% url 'chat_app:favorites' %}">
                 <i class="fas fa-star"></i> <span>Favorites</span>
+            </a>
+            
+            <!-- Email Section - Single Button -->
+            <a class="nav-link {% if request.resolver_match.url_name == 'emails' or request.resolver_match.url_name == 'email_compose' %}active{% endif %}" href="{% url 'chat_app:emails' %}">
+                <i class="fas fa-envelope"></i> <span>Email System</span>
             </a>
             
             <!-- Settings -->
@@ -696,8 +854,8 @@
                         <ul class="list-unstyled footer-links">
                             <li class="mb-2"><a href="{% url 'chat_app:group_chats' %}"><i class="fas fa-chevron-right me-2"></i>Group Chats</a></li>
                             <li class="mb-2"><a href="{% url 'chat_app:direct_messages' %}"><i class="fas fa-chevron-right me-2"></i>Direct Messages</a></li>
-                            <li class="mb-2"><a href="#" id="aiChatLinkFooter"><i class="fas fa-chevron-right me-2"></i>AI Assistant</a></li>
-                            <li class="mb-2"><a href="#"><i class="fas fa-chevron-right me-2"></i>File Sharing</a></li>
+                            <li class="mb-2"><a href="{% url 'chat_app:ai_assistant' %}"><i class="fas fa-chevron-right me-2"></i>AI Assistant</a></li>
+                            <li class="mb-2"><a href="{% url 'chat_app:emails' %}"><i class="fas fa-chevron-right me-2"></i>Email System</a></li>
                             <li class="mb-2"><a href="#"><i class="fas fa-chevron-right me-2"></i>Voice Messages</a></li>
                         </ul>
                     </div>
@@ -783,16 +941,6 @@
             localStorage.setItem('theme', newTheme);
         });
 
-        // AI Chat functionality
-        document.getElementById('aiChatLink').addEventListener('click', function() {
-            // No preventDefault here, allow normal redirection
-        });
-
-        // AI Chat functionality for footer
-        document.getElementById('aiChatLinkFooter').addEventListener('click', function() {
-           // No preventDefault, allow redirect
-        });
-
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
@@ -832,4 +980,5 @@
     </script>
     {% block scripts %}{% endblock %}
 </body>
+</html>
 </html>

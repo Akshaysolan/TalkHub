@@ -38,4 +38,17 @@ urlpatterns = [
     path('groups/<str:room_name>/', views.start_group_chat, name='start_group_chat'),
 
 
+    path('emails/', views.emails, name='emails'),
+    path('emails/compose/', views.email_compose, name='email_compose'),
+    
+    # Email API URLs
+    path('api/emails/inbox/', views.email_api_inbox, name='email_api_inbox'),
+    path('api/emails/<int:email_id>/', views.email_api_detail, name='email_api_detail'),
+    path('api/emails/send/', views.email_api_send, name='email_api_send'),
+    path('api/emails/<int:email_id>/read/', views.email_api_mark_read, name='email_api_mark_read'),
+    path('api/emails/<int:email_id>/delete/', views.email_api_delete, name='email_api_delete'),
+    path('api/emails/check_new/', views.email_api_check_new, name='email_api_check_new'),
+    path('api/emails/attachment/<int:attachment_id>/download/', 
+         views.email_api_download, name='email_api_download'),
+
 ]

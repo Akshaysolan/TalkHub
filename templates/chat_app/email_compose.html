@@ -1,0 +1,387 @@
+{% extends "chat_app/base.html" %}
+
+{% block header_title %}Compose Email{% endblock %}
+
+{% block header_subtitle %}Create and send new emails{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div class="row">
+        <!-- Compose Sidebar (Left Side) -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="email-sidebar-container" style="background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 20px;">
+                <div class="mb-4">
+                    <h5><i class="fas fa-edit me-2"></i>Compose</h5>
+                    <p class="text-muted small">Create a new email message</p>
+                </div>
+                
+                <div class="list-group email-sidebar-menu">
+                    <a href="{% url 'chat_app:emails' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Inbox
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" onclick="saveAsDraft()">
+                        <i class="fas fa-save me-2"></i>Save as Draft
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" onclick="discardEmail()">
+                        <i class="fas fa-trash me-2"></i>Discard
+                    </a>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3">Quick Tips</h6>
+                    <div class="small text-muted">
+                        <p><i class="fas fa-lightbulb me-2"></i>Use a clear subject line</p>
+                        <p><i class="fas fa-lightbulb me-2"></i>Check recipients before sending</p>
+                        <p><i class="fas fa-lightbulb me-2"></i>You can attach multiple files</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Compose Form (Right Side) -->
+        <div class="col-lg-9 col-md-8">
+            <!-- Compose Container -->
+            <div class="compose-container">
+                <div class="compose-toolbar mb-4">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="formatText('bold')">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="formatText('italic')">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="formatText('underline')">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="attachFile()">
+                            <i class="fas fa-paperclip"></i> Attach
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="insertEmoji()">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <form id="composeForm">
+                    <div class="mb-3">
+                        <label class="form-label">To:</label>
+                        <input type="email" class="form-control" id="recipient" required 
+                               placeholder="recipient@example.com">
+                        <div class="form-text">Separate multiple emails with commas</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Cc:</label>
+                        <input type="email" class="form-control" id="cc" 
+                               placeholder="cc@example.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subject:</label>
+                        <input type="text" class="form-control" id="subject" required 
+                               placeholder="Email subject">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message:</label>
+                        <textarea class="form-control" id="message" rows="15" 
+                                  placeholder="Type your message here..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Attachments:</label>
+                        <div class="attachments-preview" id="attachmentsPreview"></div>
+                        <input type="file" class="form-control" id="attachments" multiple 
+                               onchange="previewAttachments(this)" style="display: none;">
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <div>
+                            <button type="button" class="btn btn-secondary me-2" onclick="window.location.href='{% url 'chat_app:emails' %}'">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="saveAsDraft()">
+                                <i class="fas fa-save me-2"></i>Save Draft
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-primary" onclick="sendEmail()">
+                                <i class="fas fa-paper-plane me-2"></i>Send Email
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Email Compose -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize any compose page functionality
+        console.log('Email compose page loaded');
+    });
+
+    // Email sending function
+    function sendEmail() {
+        const recipient = document.getElementById('recipient').value.trim();
+        const cc = document.getElementById('cc').value.trim();
+        const subject = document.getElementById('subject').value.trim();
+        const message = document.getElementById('message').value.trim();
+        
+        // Validate required fields
+        if (!recipient) {
+            showNotification('Please enter a recipient email', 'warning');
+            document.getElementById('recipient').focus();
+            return;
+        }
+        
+        if (!subject) {
+            showNotification('Please enter a subject', 'warning');
+            document.getElementById('subject').focus();
+            return;
+        }
+        
+        if (!message) {
+            showNotification('Please enter a message', 'warning');
+            document.getElementById('message').focus();
+            return;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emails = recipient.split(',').map(email => email.trim());
+        
+        for (const email of emails) {
+            if (!emailRegex.test(email)) {
+                showNotification(`Invalid email format: ${email}`, 'warning');
+                return;
+            }
+        }
+        
+        // Show sending notification
+        showNotification('Sending email...', 'info');
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('recipient', recipient);
+        formData.append('cc', cc);
+        formData.append('subject', subject);
+        formData.append('body', message);
+        
+        // Add attachments if any
+        const attachmentInput = document.getElementById('attachments');
+        if (attachmentInput.files.length > 0) {
+            Array.from(attachmentInput.files).forEach(file => {
+                formData.append('attachments', file);
+            });
+        }
+        
+        // Send the email
+        fetch('/api/emails/send/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showNotification('Email sent successfully!', 'success');
+                // Redirect to inbox after 2 seconds
+                setTimeout(() => {
+                    window.location.href = "{% url 'chat_app:emails' %}";
+                }, 2000);
+            } else {
+                showNotification('Failed to send email: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error sending email:', error);
+            showNotification('Failed to send email. Please try again.', 'error');
+        });
+    }
+
+    // Save as draft function
+    function saveAsDraft() {
+        const recipient = document.getElementById('recipient').value.trim();
+        const subject = document.getElementById('subject').value.trim();
+        const message = document.getElementById('message').value.trim();
+        
+        if (!recipient && !subject && !message) {
+            showNotification('Draft is empty', 'warning');
+            return;
+        }
+        
+        showNotification('Draft saved successfully!', 'success');
+        // In a real app, you would save to server/database
+    }
+
+    // Discard email function
+    function discardEmail() {
+        if (confirm('Are you sure you want to discard this email? Any unsaved changes will be lost.')) {
+            window.location.href = "{% url 'chat_app:emails' %}";
+        }
+    }
+
+    // Text formatting functions
+    function formatText(command) {
+        const messageField = document.getElementById('message');
+        messageField.focus();
+        document.execCommand(command, false, null);
+    }
+
+    // File attachment functions
+    function attachFile() {
+        document.getElementById('attachments').click();
+    }
+
+    function previewAttachments(input) {
+        const preview = document.getElementById('attachmentsPreview');
+        preview.innerHTML = '';
+        
+        Array.from(input.files).forEach(file => {
+            const div = document.createElement('div');
+            div.className = 'attachment-item d-flex align-items-center';
+            div.innerHTML = `
+                <i class="fas fa-file me-2"></i>
+                <div class="flex-grow-1">
+                    <small class="d-block">${file.name}</small>
+                    <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+                </div>
+                <button type="button" class="btn-close btn-close-sm" onclick="removeAttachment(this)"></button>
+            `;
+            preview.appendChild(div);
+        });
+    }
+
+    function removeAttachment(button) {
+        button.parentElement.remove();
+        // Note: This doesn't remove from the actual file input
+        // In a real app, you'd need to handle file input removal
+    }
+
+    // Insert emoji function (placeholder)
+    function insertEmoji() {
+        const emoji = '😊';
+        const messageField = document.getElementById('message');
+        const startPos = messageField.selectionStart;
+        const endPos = messageField.selectionEnd;
+        const text = messageField.value;
+        
+        messageField.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        messageField.focus();
+        messageField.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
+        
+        showNotification('Emoji inserted', 'info');
+    }
+
+    // Notification function
+    function showNotification(message, type = 'info') {
+        // Map type to Bootstrap alert class
+        const alertClass = {
+            'info': 'alert-info',
+            'success': 'alert-success',
+            'warning': 'alert-warning',
+            'error': 'alert-danger'
+        }[type] || 'alert-info';
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show`;
+        notification.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S to save draft
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveAsDraft();
+        }
+        
+        // Ctrl/Cmd + Enter to send
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            sendEmail();
+        }
+        
+        // Escape to cancel
+        if (e.key === 'Escape') {
+            discardEmail();
+        }
+    });
+</script>
+
+<style>
+    .email-sidebar-container {
+        position: sticky;
+        top: 20px;
+    }
+    
+    .email-sidebar-menu .list-group-item {
+        border: none;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        transition: var(--transition);
+    }
+    
+    .email-sidebar-menu .list-group-item:hover {
+        background-color: rgba(102, 126, 234, 0.1);
+        transform: translateX(5px);
+    }
+    
+    .attachment-item {
+        background: rgba(0,0,0,0.05);
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    
+    .compose-toolbar {
+        background: rgba(102, 126, 234, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+    }
+    
+    textarea#message {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    
+    [data-theme="dark"] .email-sidebar-container,
+    [data-theme="dark"] .compose-container {
+        background: #1e1e1e;
+    }
+    
+    [data-theme="dark"] .attachment-item {
+        background: rgba(255,255,255,0.1);
+    }
+    
+    [data-theme="dark"] .compose-toolbar {
+        background: rgba(102, 126, 234, 0.2);
+    }
+    
+    [data-theme="dark"] .email-sidebar-menu .list-group-item {
+        background-color: #2d2d2d;
+        color: var(--text-light);
+    }
+    
+    [data-theme="dark"] .email-sidebar-menu .list-group-item:hover {
+        background-color: #3d3d3d;
+    }
+</style>
+{% endblock %}

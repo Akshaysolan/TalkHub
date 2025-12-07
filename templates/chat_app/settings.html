@@ -16,8 +16,87 @@
         --transition: all 0.3s ease;
     }
 
-    /* ... (keep existing styles) ... */
-
+    /* Login Activity Styles */
+    .login-activity-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--shadow-light);
+        overflow: hidden;
+    }
+    
+    .login-activity-table table {
+        margin: 0;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .login-activity-table th {
+        background: #f8f9ff;
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        color: #2c3e50;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .login-activity-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .login-activity-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .login-activity-table tr:hover {
+        background-color: #f8f9ff;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-failed {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .ip-address {
+        font-family: monospace;
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .device-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .device-icon {
+        font-size: 16px;
+    }
+    
+    .no-activity {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .no-activity i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        color: #dee2e6;
+    }
+    
     /* Password Strength Meter */
     .password-strength {
         margin-top: 5px;
@@ -210,6 +289,43 @@
                 </form>
             </div>
         </div>
+        
+        <!-- Login Activity Section -->
+        <div class="card settings-card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Login Activity</h5>
+                <button class="btn btn-sm btn-outline-secondary" id="refreshLoginActivity">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="login-activity-table" id="loginActivityTable">
+                    <div class="no-activity" id="noActivityMessage">
+                        <i class="fas fa-history"></i>
+                        <p>No login activity recorded yet.</p>
+                    </div>
+                    <table id="loginActivityTableContent" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Status</th>
+                                <th>IP Address</th>
+                                <th>Device/Browser</th>
+                                <th>Location</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loginActivityBody">
+                            <!-- Login activity will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-danger btn-sm" id="clearLoginHistory">
+                        <i class="fas fa-trash me-1"></i> Clear All History
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Additional Settings Cards -->
@@ -249,7 +365,7 @@
                     <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                         <i class="fas fa-key me-2"></i>Change Password
                     </button>
-                    <button class="btn btn-outline-warning">
+                    <button class="btn btn-outline-warning" id="viewLoginActivityBtn">
                         <i class="fas fa-history me-2"></i>Login Activity
                     </button>
                     <button class="btn btn-outline-danger">
@@ -353,6 +469,14 @@
         const passwordErrorMessage = document.getElementById('passwordErrorMessage');
         const passwordSuccessText = document.getElementById('passwordSuccessText');
         const passwordErrorText = document.getElementById('passwordErrorText');
+
+        // Login Activity Elements
+        const loginActivityTable = document.getElementById('loginActivityTableContent');
+        const loginActivityBody = document.getElementById('loginActivityBody');
+        const noActivityMessage = document.getElementById('noActivityMessage');
+        const refreshLoginActivityBtn = document.getElementById('refreshLoginActivity');
+        const viewLoginActivityBtn = document.getElementById('viewLoginActivityBtn');
+        const clearLoginHistoryBtn = document.getElementById('clearLoginHistory');
 
         // Password requirement elements
         const reqLength = document.getElementById('req-length');
@@ -717,6 +841,194 @@
             }
             return cookieValue;
         }
+
+        // ============ LOGIN ACTIVITY FEATURE ============
+
+        // Detect user agent and device info
+        function detectDeviceInfo() {
+            const ua = navigator.userAgent;
+            let device = 'Unknown';
+            let browser = 'Unknown';
+            
+            // Detect device
+            if (/mobile/i.test(ua)) {
+                device = 'Mobile';
+            } else if (/tablet/i.test(ua)) {
+                device = 'Tablet';
+            } else {
+                device = 'Desktop';
+            }
+            
+            // Detect browser
+            if (/chrome/i.test(ua) && !/edge/i.test(ua)) {
+                browser = 'Chrome';
+            } else if (/firefox/i.test(ua)) {
+                browser = 'Firefox';
+            } else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {
+                browser = 'Safari';
+            } else if (/edge/i.test(ua)) {
+                browser = 'Edge';
+            } else if (/opera/i.test(ua) || /opr/i.test(ua)) {
+                browser = 'Opera';
+            }
+            
+            return {
+                device: device,
+                browser: browser,
+                userAgent: ua.substring(0, 100) + '...'
+            };
+        }
+
+        // Get device icon based on device type
+        function getDeviceIcon(device) {
+            switch (device.toLowerCase()) {
+                case 'mobile': return 'fas fa-mobile-alt';
+                case 'tablet': return 'fas fa-tablet-alt';
+                case 'desktop': return 'fas fa-desktop';
+                default: return 'fas fa-laptop';
+            }
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffMins < 1) {
+                return 'Just now';
+            } else if (diffMins < 60) {
+                return `${diffMins} min ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+            } else {
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+
+        // Load login activity from localStorage
+        function loadLoginActivity() {
+            const activity = JSON.parse(localStorage.getItem('loginActivity_' + {{ user.id|default:0 }})) || [];
+            
+            if (activity.length === 0) {
+                noActivityMessage.style.display = 'block';
+                loginActivityTable.style.display = 'none';
+                return;
+            }
+            
+            noActivityMessage.style.display = 'none';
+            loginActivityTable.style.display = 'table';
+            loginActivityBody.innerHTML = '';
+            
+            // Sort by timestamp descending (newest first)
+            activity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Show only last 10 activities
+            const recentActivity = activity.slice(0, 10);
+            
+            recentActivity.forEach(item => {
+                const row = document.createElement('tr');
+                const deviceInfo = detectDeviceInfo();
+                
+                row.innerHTML = `
+                    <td>
+                        <div>${formatDate(item.timestamp)}</div>
+                        <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
+                    </td>
+                    <td>
+                        <span class="status-badge ${item.status === 'success' ? 'status-success' : 'status-failed'}">
+                            ${item.status === 'success' ? '✓ Success' : '✗ Failed'}
+                        </span>
+                    </td>
+                    <td class="ip-address">${item.ip || '127.0.0.1'}</td>
+                    <td>
+                        <div class="device-info">
+                            <i class="fas ${getDeviceIcon(deviceInfo.device)} device-icon"></i>
+                            <span>${deviceInfo.browser}</span>
+                        </div>
+                    </td>
+                    <td>${item.location || 'Unknown'}</td>
+                `;
+                loginActivityBody.appendChild(row);
+            });
+        }
+
+        // Record a new login activity
+        function recordLoginActivity(status) {
+            const activity = JSON.parse(localStorage.getItem('loginActivity_' + {{ user.id|default:0 }})) || [];
+            const deviceInfo = detectDeviceInfo();
+            
+            // Get IP address (simulated for now - in production, get from request)
+            const ip = '192.168.1.' + Math.floor(Math.random() * 255);
+            
+            // Simulated location based on IP (in production, use geolocation API)
+            const locations = ['New York, USA', 'London, UK', 'Tokyo, Japan', 'Sydney, Australia', 'Berlin, Germany'];
+            const location = locations[Math.floor(Math.random() * locations.length)];
+            
+            const newActivity = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                status: status,
+                ip: ip,
+                device: deviceInfo.device,
+                browser: deviceInfo.browser,
+                location: location,
+                userAgent: deviceInfo.userAgent
+            };
+            
+            activity.unshift(newActivity); // Add to beginning
+            localStorage.setItem('loginActivity_' + {{ user.id|default:0 }}, JSON.stringify(activity));
+            loadLoginActivity();
+        }
+
+        // Clear all login history
+        function clearLoginHistory() {
+            if (confirm('Are you sure you want to clear all login history? This action cannot be undone.')) {
+                localStorage.removeItem('loginActivity_' + {{ user.id|default:0 }});
+                loadLoginActivity();
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Login history cleared successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                // Find the card body and prepend the alert
+                const cardBody = document.querySelector('.card-body');
+                cardBody.insertBefore(alertDiv, cardBody.firstChild);
+                
+                // Remove alert after 5 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        }
+
+        // Initialize login activity
+        loadLoginActivity();
+        
+        // Record current login session
+        recordLoginActivity('success');
+
+        // Event listeners for login activity buttons
+        refreshLoginActivityBtn.addEventListener('click', loadLoginActivity);
+        viewLoginActivityBtn.addEventListener('click', function() {
+            // Scroll to login activity section
+            document.querySelector('.login-activity-table').scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+        clearLoginHistoryBtn.addEventListener('click', clearLoginHistory);
+
+        
     });
 </script>
 {% endblock %}

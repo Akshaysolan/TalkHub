@@ -13,6 +13,14 @@ from django.core.exceptions import ValidationError
 import json
 import os
 from groq import Groq
+from django.views.decorators.csrf import csrf_exempt
+
+# Import the new email models with try-except
+try:
+    from .models import Email, EmailAttachment, EmailContact, LoginActivity
+    EMAIL_MODELS_EXIST = True
+except ImportError:
+    EMAIL_MODELS_EXIST = False
 
 # ============ AUTHENTICATION VIEWS ============
 
@@ -335,11 +343,17 @@ def settings(request):
             'last_seen': timezone.now()
         }
     
-    # GET HEADER STATS - ADD THESE LINES
+    # Get header stats
     total_rooms_count = Room.objects.count()
     today_messages_count = Message.objects.filter(
         timestamp__date=timezone.now().date()
     ).count()
+    
+    # Get login activity (if model exists)
+    try:
+        login_activities = LoginActivity.objects.filter(user=request.user).order_by('-timestamp')[:10]
+    except:
+        login_activities = []
     
     if request.method == 'POST':
         form_type = request.POST.get('form_type')
@@ -447,13 +461,13 @@ def settings(request):
                 messages.error(request, error_message)
                 return redirect('chat_app:settings')
     
-    # For GET requests - MAKE SURE TO RETURN THESE VARIABLES
+    # For GET requests
     context = {
         'profile': profile,
-        # ADD THESE 3 LINES
+        'login_activities': login_activities,
         'total_rooms_count': total_rooms_count,
         'today_messages_count': today_messages_count,
-        'online_users_count': 1,  # Just the current user
+        'online_users_count': 1,
     }
     return render(request, 'chat_app/settings.html', context)
 
@@ -616,3 +630,719 @@ def get_messages(request, room_name):
             'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
         })
     return JsonResponse(messages_data, safe=False)
+
+# ============ EMAIL VIEWS (WITH DUMMY DATA) ============
+
+@login_required
+def email_api_check_new(request):
+    """API endpoint for checking new emails - using real database"""
+    # Get the timestamp from the request (if any)
+    last_check = request.GET.get('last_check', None)
+    
+    if last_check:
+        try:
+            from django.utils.dateparse import parse_datetime
+            last_check_dt = parse_datetime(last_check)
+            
+            # Count new emails since last check
+            new_emails_count = Email.objects.filter(
+                recipients=request.user,
+                status='inbox',
+                is_read=False,
+                created_at__gt=last_check_dt
+            ).count()
+            
+            has_new = new_emails_count > 0
+            
+            return JsonResponse({
+                'has_new': has_new,
+                'new_count': new_emails_count,
+                'last_check': timezone.now().isoformat(),
+                'message': f'{new_emails_count} new email(s)' if has_new else 'No new emails'
+            })
+        except:
+            pass
+    
+    # Fallback: just check if there are any unread emails
+    new_emails_count = Email.objects.filter(
+        recipients=request.user,
+        status='inbox',
+        is_read=False
+    ).count()
+    
+    return JsonResponse({
+        'has_new': new_emails_count > 0,
+        'new_count': new_emails_count,
+        'last_check': timezone.now().isoformat(),
+        'message': f'{new_emails_count} new email(s)' if new_emails_count > 0 else 'No new emails'
+    })
+
+@login_required
+def emails(request):
+    """Main email inbox view - render the email page with real stats"""
+    # Add header stats for the email page
+    total_rooms_count = Room.objects.count()
+    today_messages_count = Message.objects.filter(
+        timestamp__date=timezone.now().date()
+    ).count()
+    
+    # Get email stats from database
+    try:
+        inbox_count = Email.objects.filter(
+            recipients=request.user,
+            status='inbox'
+        ).count()
+        
+        unread_count = Email.objects.filter(
+            recipients=request.user,
+            status='inbox',
+            is_read=False
+        ).count()
+        
+        important_count = Email.objects.filter(
+            recipients=request.user,
+            status='inbox',
+            is_starred=True
+        ).count()
+        
+        sent_count = Email.objects.filter(
+            sender=request.user,
+            status='sent'
+        ).count()
+        
+    except Exception as e:
+        # If models don't exist yet, use dummy values
+        inbox_count = 0
+        unread_count = 0
+        important_count = 0
+        sent_count = 0
+    
+    context = {
+        'total_rooms_count': total_rooms_count,
+        'today_messages_count': today_messages_count,
+        'online_users_count': 1,  # Just the current user
+        'email_stats': {
+            'inbox': inbox_count,
+            'unread': unread_count,
+            'important': important_count,
+            'sent': sent_count,
+        }
+    }
+    return render(request, 'chat_app/emails.html', context)
+
+@login_required
+def email_compose(request):
+    """Compose email view"""
+    # Add header stats
+    total_rooms_count = Room.objects.count()
+    today_messages_count = Message.objects.filter(
+        timestamp__date=timezone.now().date()
+    ).count()
+    
+    # Get user's contacts for auto-suggest
+    try:
+        from .models import EmailContact
+        contacts = EmailContact.objects.filter(user=request.user)[:20]
+        contact_list = [
+            {'name': contact.name, 'email': contact.email}
+            for contact in contacts
+        ]
+    except:
+        contact_list = []
+    
+    context = {
+        'total_rooms_count': total_rooms_count,
+        'today_messages_count': today_messages_count,
+        'online_users_count': 1,
+        'contacts': contact_list,
+    }
+    return render(request, 'chat_app/email_compose.html', context)
+
+@login_required
+def email_api_inbox(request):
+    """API endpoint for inbox emails - using real database"""
+    try:
+        # Get filter from request
+        filter_type = request.GET.get('filter', 'inbox')
+        
+        # Base queryset
+        if filter_type == 'inbox':
+            emails_qs = Email.objects.filter(
+                recipients=request.user,
+                status='inbox'
+            )
+        elif filter_type == 'sent':
+            emails_qs = Email.objects.filter(
+                sender=request.user,
+                status='sent'
+            )
+        elif filter_type == 'important':
+            emails_qs = Email.objects.filter(
+                recipients=request.user,
+                status='inbox',
+                is_starred=True
+            )
+        elif filter_type == 'trash':
+            emails_qs = Email.objects.filter(
+                Q(recipients=request.user) | Q(sender=request.user),
+                status='trash'
+            )
+        elif filter_type == 'drafts':
+            emails_qs = Email.objects.filter(
+                sender=request.user,
+                status='draft'
+            )
+        else:
+            emails_qs = Email.objects.filter(
+                recipients=request.user,
+                status='inbox'
+            )
+        
+        # Get emails with related data
+        inbox_emails = emails_qs.select_related('sender').prefetch_related('attachments').order_by('-created_at')
+        
+        # Count unread emails (only for inbox)
+        unread_count = 0
+        if filter_type == 'inbox':
+            unread_count = inbox_emails.filter(is_read=False).count()
+        
+        # Pagination
+        page = int(request.GET.get('page', 1))
+        per_page = 20
+        start = (page - 1) * per_page
+        end = start + per_page
+        
+        # Prepare data
+        emails_data = []
+        for email in inbox_emails[start:end]:
+            emails_data.append({
+                'id': email.id,
+                'sender': email.sender.username,
+                'subject': email.subject or '(No Subject)',
+                'preview': email.get_preview(100) if hasattr(email, 'get_preview') else (email.body[:100] + '...' if len(email.body) > 100 else email.body),
+                'time': email.created_at.strftime('%I:%M %p') if email.created_at else '',
+                'date': email.created_at.strftime('%b %d') if email.created_at else '',
+                'unread': not email.is_read,
+                'important': email.is_starred,
+                'attachments': email.attachments.count(),
+                'has_attachments': email.attachments.exists(),
+            })
+        
+        return JsonResponse({
+            'emails': emails_data,
+            'unread_count': unread_count,
+            'total_count': inbox_emails.count(),
+            'page': page,
+            'total_pages': (inbox_emails.count() + per_page - 1) // per_page,
+            'filter': filter_type
+        })
+        
+    except Exception as e:
+        print(f"Error in email_api_inbox: {e}")  # For debugging
+        # Fallback to dummy data if there's an error
+        return get_dummy_email_data(request)
+
+@login_required
+def email_api_detail(request, email_id):
+    """API endpoint for email detail - using real database"""
+    try:
+        email = Email.objects.get(
+            Q(id=email_id, recipients=request.user) | 
+            Q(id=email_id, sender=request.user, status__in=['sent', 'draft'])
+        )
+        
+        # Mark as read if not already (only for inbox emails)
+        if not email.is_read and email.status == 'inbox':
+            email.mark_as_read()
+        
+        # Get attachments
+        attachments = []
+        for attachment in email.attachments.all():
+            attachments.append({
+                'id': attachment.id,
+                'name': attachment.file_name,
+                'size': attachment.file_size_display if hasattr(attachment, 'file_size_display') else f"{attachment.file_size} bytes",
+                'url': attachment.file.url if attachment.file else '#',
+                'type': attachment.file_type
+            })
+        
+        # Get recipients info
+        recipients_list = []
+        for recipient in email.recipients.all():
+            recipients_list.append({
+                'username': recipient.username,
+                'email': recipient.email
+            })
+        
+        cc_list = []
+        for cc in email.cc_recipients.all():
+            cc_list.append({
+                'username': cc.username,
+                'email': cc.email
+            })
+        
+        bcc_list = []
+        for bcc in email.bcc_recipients.all():
+            bcc_list.append({
+                'username': bcc.username,
+                'email': bcc.email
+            })
+        
+        email_data = {
+            'id': email.id,
+            'sender': email.sender.username,
+            'sender_email': email.sender.email,
+            'subject': email.subject or '(No Subject)',
+            'body': email.body,
+            'body_html': email.body_html or email.body,
+            'full_date': email.created_at.strftime('%B %d, %Y at %I:%M %p') if email.created_at else 'Unknown date',
+            'important': email.is_starred,
+            'read': email.is_read,
+            'status': email.status,
+            'attachments': attachments,
+            'recipients': recipients_list,
+            'cc': cc_list,
+            'bcc': bcc_list,
+            'can_reply': email.status == 'inbox',
+            'can_forward': True,
+            'can_delete': True,
+        }
+        
+        return JsonResponse(email_data)
+        
+    except Email.DoesNotExist:
+        return JsonResponse({
+            'error': 'Email not found or you don\'t have permission to view it'
+        }, status=404)
+    except Exception as e:
+        print(f"Error in email_api_detail: {e}")  # For debugging
+        return get_dummy_email_detail(email_id)
+
+@csrf_exempt
+@login_required
+def email_api_send(request):
+    """API endpoint for sending emails - using real database"""
+    if request.method == 'POST':
+        try:
+            recipient_emails = [email.strip() for email in request.POST.get('recipient', '').split(',') if email.strip()]
+            cc_emails = [email.strip() for email in request.POST.get('cc', '').split(',') if email.strip()]
+            bcc_emails = [email.strip() for email in request.POST.get('bcc', '').split(',') if email.strip()]
+            subject = request.POST.get('subject', '').strip()
+            body = request.POST.get('body', '').strip()
+            body_html = request.POST.get('body_html', body)
+            
+            # Validate required fields
+            if not recipient_emails:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'At least one recipient is required.'
+                }, status=400)
+            
+            if not subject:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'Subject is required.'
+                }, status=400)
+            
+            if not body:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'Message body is required.'
+                }, status=400)
+            
+            # Validate email format
+            import re
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            
+            all_emails = recipient_emails + cc_emails + bcc_emails
+            for email_addr in all_emails:
+                if not re.match(email_regex, email_addr):
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Invalid email format: {email_addr}'
+                    }, status=400)
+            
+            # Find or create users for recipients
+            recipients = []
+            cc_recipients = []
+            bcc_recipients = []
+            
+            for email_addr in recipient_emails:
+                user, created = User.objects.get_or_create(
+                    email=email_addr,
+                    defaults={'username': email_addr.split('@')[0], 'password': 'unusable'}
+                )
+                recipients.append(user)
+            
+            for email_addr in cc_emails:
+                user, created = User.objects.get_or_create(
+                    email=email_addr,
+                    defaults={'username': email_addr.split('@')[0], 'password': 'unusable'}
+                )
+                cc_recipients.append(user)
+            
+            for email_addr in bcc_emails:
+                user, created = User.objects.get_or_create(
+                    email=email_addr,
+                    defaults={'username': email_addr.split('@')[0], 'password': 'unusable'}
+                )
+                bcc_recipients.append(user)
+            
+            # Create the email for recipients (inbox)
+            email = Email.objects.create(
+                sender=request.user,
+                subject=subject,
+                body=body,
+                body_html=body_html,
+                status='inbox'
+            )
+            email.recipients.set(recipients)
+            email.cc_recipients.set(cc_recipients)
+            email.bcc_recipients.set(bcc_recipients)
+            
+            # Create sent copy for sender
+            sent_email = Email.objects.create(
+                sender=request.user,
+                subject=subject,
+                body=body,
+                body_html=body_html,
+                status='sent',
+                is_read=True  # Sent emails are marked as read
+            )
+            sent_email.recipients.set(recipients)
+            sent_email.cc_recipients.set(cc_recipients)
+            sent_email.bcc_recipients.set(bcc_recipients)
+            
+            # Handle attachments
+            if 'attachments' in request.FILES:
+                for file in request.FILES.getlist('attachments'):
+                    # Create attachment for recipient's email
+                    attachment = EmailAttachment.objects.create(
+                        email=email,
+                        file=file,
+                        file_name=file.name,
+                        file_size=file.size,
+                        file_type=file.content_type or 'application/octet-stream'
+                    )
+                    
+                    # Create attachment for sent email
+                    EmailAttachment.objects.create(
+                        email=sent_email,
+                        file=file,
+                        file_name=file.name,
+                        file_size=file.size,
+                        file_type=file.content_type or 'application/octet-stream'
+                    )
+            
+            # Create notifications for recipients
+            try:
+                from .models import EmailNotification
+                for recipient in recipients:
+                    EmailNotification.objects.create(
+                        user=recipient,
+                        notification_type='new_email',
+                        email=email,
+                        message=f'New email from {request.user.username}: {subject}'
+                    )
+            except:
+                pass  # Notifications model might not exist yet
+            
+            return JsonResponse({
+                'status': 'success', 
+                'message': f'Email sent successfully to {len(recipients)} recipient(s)!',
+                'email_id': email.id,
+                'sent_email_id': sent_email.id
+            })
+            
+        except Exception as e:
+            import traceback
+            print(f"Error in email_api_send: {e}")
+            print(traceback.format_exc())
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'Error sending email: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error', 
+        'message': 'Method not allowed. Use POST.'
+    }, status=405)
+
+@csrf_exempt
+@login_required
+def email_api_mark_read(request, email_id):
+    """API endpoint for marking email as read - real implementation"""
+    if request.method == 'POST':
+        try:
+            email = Email.objects.get(id=email_id, recipients=request.user)
+            
+            # Get action from request data
+            import json
+            data = json.loads(request.body) if request.body else {}
+            action = data.get('action', 'read')  # 'read' or 'unread'
+            
+            if action == 'read':
+                email.mark_as_read()
+                message = f'Email #{email_id} marked as read.'
+            else:
+                email.mark_as_unread()
+                message = f'Email #{email_id} marked as unread.'
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': message,
+                'is_read': email.is_read
+            })
+            
+        except Email.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Email not found'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Error: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Method not allowed. Use POST.'
+    }, status=405)
+
+@csrf_exempt
+@login_required
+def email_api_toggle_star(request, email_id):
+    """API endpoint for toggling star/important status"""
+    if request.method == 'POST':
+        try:
+            email = Email.objects.get(id=email_id, recipients=request.user)
+            email.toggle_star()
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Email #{email_id} {"starred" if email.is_starred else "unstarred"}',
+                'is_starred': email.is_starred
+            })
+            
+        except Email.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Email not found'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Error: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Method not allowed. Use POST.'
+    }, status=405)
+
+@csrf_exempt
+@login_required
+def email_api_delete(request, email_id):
+    """API endpoint for deleting email - real implementation"""
+    if request.method == 'POST':
+        try:
+            email = Email.objects.get(
+                Q(id=email_id, recipients=request.user) | 
+                Q(id=email_id, sender=request.user)
+            )
+            
+            # Get action from request data
+            import json
+            data = json.loads(request.body) if request.body else {}
+            permanent = data.get('permanent', False)
+            
+            if permanent:
+                # Permanent delete
+                email.delete()
+                message = f'Email #{email_id} permanently deleted.'
+            else:
+                # Move to trash
+                email.move_to_trash()
+                message = f'Email #{email_id} moved to trash.'
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': message
+            })
+            
+        except Email.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Email not found'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Error: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Method not allowed. Use POST.'
+    }, status=405)
+
+@csrf_exempt
+@login_required
+def email_api_bulk_action(request):
+    """API endpoint for bulk email actions"""
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body) if request.body else {}
+            
+            email_ids = data.get('email_ids', [])
+            action = data.get('action', '')  # 'read', 'unread', 'star', 'unstar', 'delete', 'trash'
+            
+            if not email_ids:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No emails selected'
+                }, status=400)
+            
+            # Get emails that belong to the user
+            emails = Email.objects.filter(
+                Q(id__in=email_ids, recipients=request.user) | 
+                Q(id__in=email_ids, sender=request.user)
+            )
+            
+            count = 0
+            for email in emails:
+                if action == 'read':
+                    email.mark_as_read()
+                    count += 1
+                elif action == 'unread':
+                    email.mark_as_unread()
+                    count += 1
+                elif action == 'star':
+                    email.is_starred = True
+                    email.save(update_fields=['is_starred'])
+                    count += 1
+                elif action == 'unstar':
+                    email.is_starred = False
+                    email.save(update_fields=['is_starred'])
+                    count += 1
+                elif action == 'delete':
+                    email.delete()
+                    count += 1
+                elif action == 'trash':
+                    email.move_to_trash()
+                    count += 1
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'{action.capitalize()} action applied to {count} email(s)',
+                'count': count
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Error: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Method not allowed. Use POST.'
+    }, status=405)
+
+@login_required
+def email_api_download(request, attachment_id):
+    """API endpoint for downloading attachments"""
+    try:
+        attachment = EmailAttachment.objects.get(
+            id=attachment_id,
+            email__recipients=request.user
+        )
+        
+        # In a real app, you'd serve the file
+        # For now, return the URL
+        return JsonResponse({
+            'url': attachment.file.url if attachment.file else '#',
+            'filename': attachment.file_name,
+            'size': attachment.file_size_display if hasattr(attachment, 'file_size_display') else f"{attachment.file_size} bytes",
+            'type': attachment.file_type,
+            'message': 'Download link generated'
+        })
+        
+    except EmailAttachment.DoesNotExist:
+        return JsonResponse({
+            'error': 'Attachment not found or you don\'t have permission to download it'
+        }, status=404)
+
+# Helper functions for fallback dummy data
+def get_dummy_email_data(request):
+    """Fallback dummy email data if database fails"""
+    dummy_emails = [
+        {
+            'id': 1,
+            'sender': 'admin',
+            'subject': 'Welcome to Chat Application',
+            'preview': 'Welcome to our chat platform! We hope you enjoy using all our features including group chats, direct messages, and AI assistant...',
+            'time': '10:00 AM',
+            'date': timezone.now().strftime('%b %d'),
+            'unread': True,
+            'important': False,
+            'attachments': 0,
+            'has_attachments': False,
+        },
+        # ... (keep your existing dummy emails)
+    ]
+    
+    return JsonResponse({
+        'emails': dummy_emails,
+        'unread_count': 2,
+        'total_count': len(dummy_emails),
+        'page': 1,
+        'total_pages': 1,
+        'filter': 'inbox',
+        'note': 'Using dummy data - database might not be ready'
+    })
+
+def get_dummy_email_detail(email_id):
+    """Fallback dummy email detail if database fails"""
+    email_details = {
+        1: {
+            'id': 1,
+            'sender': 'admin',
+            'sender_email': 'admin@chat-app.com',
+            'subject': 'Welcome to Chat Application',
+            'body': '''<p>Dear User,</p>
+                      <p>Welcome to Chat Application! We\'re excited to have you on board.</p>
+                      <p>Our platform offers a comprehensive set of features:</p>
+                      <ul>
+                        <li>Real-time group chats</li>
+                        <li>Direct messaging</li>
+                        <li>AI Assistant powered by Groq</li>
+                        <li>Email system (you\'re looking at it!)</li>
+                        <li>User profiles and settings</li>
+                      </ul>
+                      <p>Feel free to explore all the features and let us know if you have any questions.</p>
+                      <p>Best regards,<br>The Chat Application Team</p>''',
+            'full_date': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+            'important': False,
+            'read': False,
+            'attachments': []
+        },
+        # ... (keep your existing dummy email details)
+    }
+    
+    email_data = email_details.get(email_id, {
+        'id': email_id,
+        'sender': 'System',
+        'sender_email': 'system@chat-app.com',
+        'subject': f'Email #{email_id}',
+        'body': 'This is a sample email body.',
+        'full_date': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+        'important': False,
+        'read': True,
+        'attachments': [],
+        'note': 'Using dummy data - database might not be ready'
+    })
+    
+    return JsonResponse(email_data)
