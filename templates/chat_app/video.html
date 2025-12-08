@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Video + Chat Call</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/emoji-picker/1.1.5/css/emoji.min.css"/>
+<style>
+  :root{
+    --bg-dark:#0a0a0a;
+    --panel-dark:#111;
+    --accent:#00c853;
+    --muted:#888;
+    --text-light:#fff;
+  }
+  
+  .light-mode{
+    --bg-dark:#f0f0f0;
+    --panel-dark:#ffffff;
+    --accent:#0f9d58;
+    --muted:#666;
+    --text-light:#333;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;
+  }
+  
+  body{
+    background:var(--bg-dark);
+    color:var(--text-light);
+    display:flex;
+    flex-direction:column;
+    transition: background-color 0.3s, color 0.3s;
+    overflow: hidden;
+  }
+
+  .call-area{
+    flex:1; 
+    display:flex; 
+    gap:16px; 
+    padding:16px; 
+    padding-top:70px;
+    box-sizing:border-box;
+    height: calc(100vh - 100px);
+  }
+  
+  .video-panel{
+    flex:2; 
+    min-width:260px; 
+    display:flex; 
+    flex-direction:column; 
+    gap:12px;
+    height: 100%;
+  }
+  
+  .chat-panel{
+    flex:1; 
+    min-width:240px; 
+    background:rgba(0,0,0,0.35); 
+    border-radius:12px; 
+    padding:12px;
+    display:flex; 
+    flex-direction:column; 
+    gap:8px;
+    position:relative;
+    height: 100%;
+  }
+
+  .light-mode .chat-panel {
+    background:rgba(255,255,255,0.2);
+    border:1px solid rgba(0,0,0,0.1);
+  }
+
+  .video-grid{
+    display:grid; 
+    grid-template-columns:1fr 1fr; 
+    gap:12px;
+    height: 75vh; /* Increased height */
+    min-height: 500px;
+  }
+  
+  @media (max-width:900px){
+    .call-area{
+      flex-direction:column;
+      padding-top:70px;
+      height: auto;
+    }
+    .video-grid{
+      grid-template-columns:1fr;
+      height: 60vh;
+      min-height: 400px;
+    }
+    .chat-panel{
+      order:2;
+      height: 40vh;
+      min-height: 300px;
+    }
+  }
+
+  video{
+    width:100%; 
+    height:100%; 
+    object-fit:cover; 
+    background:#222; 
+    border-radius:10px; 
+    border:2px solid rgba(255,255,255,0.04);
+    transition: filter 0.3s;
+  }
+
+  .light-mode video {
+    background:#e0e0e0;
+    border:2px solid rgba(0,0,0,0.1);
+  }
+
+  .video-box{
+    position:relative; 
+    height: 100%;
+    min-height: 300px;
+    overflow:hidden;
+    border-radius: 10px;
+  }
+
+  .filter-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    border-radius: 10px;
+  }
+
+  .filter-grayscale {
+    filter: grayscale(100%);
+  }
+
+  .filter-sepia {
+    filter: sepia(100%);
+  }
+
+  .filter-invert {
+    filter: invert(100%);
+  }
+
+  .filter-hue {
+    filter: hue-rotate(90deg);
+  }
+
+  #overlayCanvas{
+    position:absolute; 
+    left:0; 
+    top:0; 
+    width:100%; 
+    height:100%; 
+    pointer-events:none;
+  }
+
+  #controls{
+    position:fixed; 
+    bottom:22px; 
+    left:50%; 
+    transform:translateX(-50%);
+    display:flex; 
+    gap:10px; 
+    background:rgba(0,0,0,0.65); 
+    padding:10px 14px; 
+    border-radius:999px; 
+    z-index:9999; 
+    align-items:center;
+    box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  }
+
+  .light-mode #controls {
+    background:rgba(255,255,255,0.85);
+    box-shadow:0 6px 20px rgba(0,0,0,0.15);
+  }
+
+  #controls button{ 
+    width:54px; 
+    height:54px; 
+    border-radius:50%; 
+    border:none; 
+    cursor:pointer; 
+    display:flex;
+    align-items:center;
+    justify-content:center; 
+    font-size:18px; 
+    color:#fff;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  #controls button:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+
+  #controls .btn-red{background:#ff1744}
+  #controls .btn-yellow{background:#ffb100}
+  #controls .btn-blue{background:#0095ff}
+  #controls .btn-green{background:var(--accent)}
+
+  .recording-active {
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+  }
+
+  .recording-indicator {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    background: #ff1744;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 10001;
+    display: none;
+  }
+
+  .popup{
+    position:fixed; 
+    right:18px; 
+    top:70px;
+    background:#fff; 
+    color:#000; 
+    padding:12px; 
+    border-radius:10px; 
+    z-index:10000; 
+    width:260px; 
+    box-shadow:0 6px 20px rgba(0,0,0,0.25);
+    display:none;
+  }
+
+  .light-mode .popup {
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.1);
+  }
+
+  .popup small{color:#666}
+
+  #timerBox{
+    position:fixed; 
+    left:50%; 
+    transform:translateX(-50%); 
+    top:70px;
+    background:rgba(0,0,0,0.6); 
+    color:#fff; 
+    padding:8px 12px; 
+    border-radius:8px; 
+    display:none; 
+    z-index:9999;
+  }
+
+  .light-mode #timerBox {
+    background:rgba(255,255,255,0.8);
+    color:#333;
+    border:1px solid rgba(0,0,0,0.1);
+  }
+
+  .chat-messages{
+    flex:1; 
+    overflow:auto; 
+    padding:8px; 
+    display:flex; 
+    flex-direction:column; 
+    gap:8px;
+    min-height: 0;
+  }
+  
+  .msg {
+    max-width:80%; 
+    padding:8px 10px; 
+    border-radius:8px;
+    word-break: break-word;
+  }
+  
+  .msg.me{
+    align-self:flex-end; 
+    background:linear-gradient(90deg,#0f9d58,#00c853); 
+    color:#fff;
+  }
+  
+  .msg.other{
+    align-self:flex-start; 
+    background:rgba(255,255,255,0.06); 
+    color:#fff;
+  }
+
+  .msg.file {
+    padding: 12px;
+    background: rgba(100, 149, 237, 0.2);
+    border-left: 4px solid #6495ed;
+  }
+
+  .light-mode .msg.other {
+    background:rgba(0,0,0,0.08);
+    color:#333;
+  }
+
+  .file-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(100, 149, 237, 0.1);
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+
+  .file-icon {
+    font-size: 20px;
+  }
+
+  .file-name {
+    flex: 1;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .typing-indicator{
+    font-size:12px;
+    color:var(--muted); 
+    min-height:18px;
+  }
+
+  #themeToggle{
+    position:fixed; 
+    left:18px; 
+    top:18px; 
+    width:44px; 
+    height:44px; 
+    border-radius:8px; 
+    border:none; 
+    z-index:9999; 
+    cursor:pointer; 
+    background:rgba(255,255,255,0.06); 
+    color:#fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
+
+  .light-mode #themeToggle {
+    background:rgba(0,0,0,0.06);
+    color:#333;
+  }
+
+  #backButton{
+    position:fixed; 
+    left:70px; 
+    top:18px; 
+    width:44px; 
+    height:44px; 
+    border-radius:8px; 
+    border:none; 
+    z-index:9999; 
+    cursor:pointer; 
+    background:rgba(255,255,255,0.06); 
+    color:#fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+  }
+
+  .light-mode #backButton {
+    background:rgba(0,0,0,0.06);
+    color:#333;
+  }
+
+  .blurred { 
+    filter: blur(8px) brightness(0.9); 
+    transform-origin:center; 
+  }
+
+  .chat-input{
+    display:flex; 
+    gap:8px;
+    position:relative;
+  }
+  
+  .chat-input input{
+    flex:1; 
+    padding:10px 12px; 
+    padding-right: 40px;
+    border-radius:8px; 
+    border:1px solid rgba(255,255,255,0.06); 
+    background:transparent; 
+    color:inherit;
+    font-size: 14px;
+  }
+
+  .light-mode .chat-input input {
+    border:1px solid rgba(0,0,0,0.1);
+    background:rgba(255,255,255,0.8);
+  }
+
+  .emoji-btn {
+    position: absolute;
+    right: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+  }
+
+  .file-btn {
+    position: absolute;
+    right: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+  }
+
+  .emoji-picker {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    background: var(--panel-dark);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 1000;
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    width: 250px;
+  }
+
+  .emoji-item {
+    display: inline-block;
+    padding: 4px;
+    cursor: pointer;
+    font-size: 20px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .emoji-item:hover {
+    background-color: rgba(255,255,255,0.1);
+  }
+
+  .small-muted{
+    font-size:12px; 
+    color:var(--muted);
+  }
+
+  .filters-panel {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  }
+
+  .filter-btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
+
+  .filter-btn.active {
+    background: var(--accent);
+  }
+
+  .light-mode .filter-btn {
+    background: rgba(0,0,0,0.1);
+    color: #333;
+  }
+
+  .light-mode .filter-btn:hover {
+    background: rgba(0,0,0,0.2);
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .video-controls-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 10;
+  }
+
+  .video-box:hover .video-controls-overlay {
+    opacity: 1;
+  }
+
+  .video-control-btn {
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .video-control-btn:hover {
+    background: rgba(0,0,0,0.9);
+  }
+</style>
+</head>
+<body>
+
+<button id="themeToggle" title="Toggle theme"><i class="fas fa-moon"></i></button>
+<button id="backButton" title="Go back"><i class="fas fa-arrow-left"></i></button>
+
+<div class="recording-indicator" id="recordingIndicator">
+  <i class="fas fa-circle" style="color:#ff1744; animation: pulse 1.5s infinite;"></i>
+  <span>Recording...</span>
+  <span id="recordingTime">00:00</span>
+</div>
+
+<div id="incomingCallPopup" class="popup">
+  <strong id="callerName">Incoming call</strong>
+  <div class="small-muted" id="callerInfo">Someone is calling you</div>
+  <div style="margin-top:8px; display:flex; gap:8px;">
+    <button id="acceptCall" class="btn btn-success btn-sm" style="flex:1">Accept</button>
+    <button id="holdCall" class="btn btn-warning btn-sm" style="flex:1;display:none">Hold</button>
+    <button id="rejectCall" class="btn btn-danger btn-sm" style="flex:1">Decline</button>
+  </div>
+</div>
+
+<div id="callWaitingPopup" class="popup" style="display:none; right:18px; top:120px;">
+  <strong id="waitingFrom">Call waiting</strong>
+  <div class="small-muted" id="waitingInfo">Someone else is calling</div>
+  <div style="margin-top:8px; display:flex; gap:8px;">
+    <button id="acceptWaiting" class="btn btn-success btn-sm" style="flex:1">Swap & Accept</button>
+    <button id="declineWaiting" class="btn btn-danger btn-sm" style="flex:1">Decline</button>
+  </div>
+</div>
+
+<div id="timerBox">00:00</div>
+
+<div class="call-area container-fluid">
+  <div class="video-panel">
+    <div class="video-grid">
+      <div class="video-box" id="localBox">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div id="localFilterOverlay" class="filter-overlay"></div>
+        <canvas id="overlayLocal" class="overlay" width="640" height="480" style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;"></canvas>
+        <div class="video-controls-overlay">
+          <button class="video-control-btn" id="flipCameraBtn" title="Flip camera">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+          <button class="video-control-btn" id="mirrorLocalBtn" title="Mirror video">
+            <i class="fas fa-exchange-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="video-box" id="remoteBox">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div id="remoteFilterOverlay" class="filter-overlay"></div>
+        <canvas id="overlayRemote" class="overlay" width="640" height="480" style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;"></canvas>
+        <div class="video-controls-overlay">
+          <button class="video-control-btn" id="muteRemoteBtn" title="Mute remote">
+            <i class="fas fa-volume-up"></i>
+          </button>
+          <button class="video-control-btn" id="mirrorRemoteBtn" title="Mirror video">
+            <i class="fas fa-exchange-alt"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:12px; align-items:center;">
+      <div>
+        <label class="small-muted">Blur background</label>
+        <input id="blurToggle" type="checkbox" style="margin-left:8px;">
+      </div>
+      <div>
+        <label class="small-muted">Noise reduction</label>
+        <input id="noiseToggle" type="checkbox" style="margin-left:8px;">
+      </div>
+      <div style="margin-left:auto;">
+        <small class="small-muted">Status: <span id="callStatus">idle</span></small>
+      </div>
+    </div>
+
+    <div class="filters-panel">
+      <button class="filter-btn" data-filter="none">Normal</button>
+      <button class="filter-btn" data-filter="grayscale">Grayscale</button>
+      <button class="filter-btn" data-filter="sepia">Sepia</button>
+      <button class="filter-btn" data-filter="invert">Invert</button>
+      <button class="filter-btn" data-filter="hue">Hue Shift</button>
+    </div>
+
+    <div class="progress-bar" id="uploadProgressBar">
+      <div class="progress-fill" id="uploadProgressFill"></div>
+    </div>
+  </div>
+
+  <div class="chat-panel">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <h6 style="margin:0">{{ other_user }}</h6>
+      <small class="small-muted" id="presenceIndicator">offline</small>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="typing-indicator" id="typingIndicator"></div>
+    
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Write a message..." autocomplete="off"/>
+      <button class="file-btn" id="fileBtn" title="Send file"><i class="fas fa-paperclip"></i></button>
+      <button class="emoji-btn" id="emojiBtn" title="Add emoji">😀</button>
+      <button id="sendChatBtn" class="btn btn-primary btn-sm">Send</button>
+      
+      <div class="emoji-picker" id="emojiPicker">
+        <div class="emoji-item" onclick="addEmoji('😀')">😀</div>
+        <div class="emoji-item" onclick="addEmoji('😂')">😂</div>
+        <div class="emoji-item" onclick="addEmoji('😍')">😍</div>
+        <div class="emoji-item" onclick="addEmoji('👍')">👍</div>
+        <div class="emoji-item" onclick="addEmoji('👏')">👏</div>
+        <div class="emoji-item" onclick="addEmoji('🎉')">🎉</div>
+        <div class="emoji-item" onclick="addEmoji('❤️')">❤️</div>
+        <div class="emoji-item" onclick="addEmoji('🔥')">🔥</div>
+        <div class="emoji-item" onclick="addEmoji('⭐')">⭐</div>
+        <div class="emoji-item" onclick="addEmoji('🙏')">🙏</div>
+        <div class="emoji-item" onclick="addEmoji('😎')">😎</div>
+        <div class="emoji-item" onclick="addEmoji('🤔')">🤔</div>
+        <div class="emoji-item" onclick="addEmoji('👌')">👌</div>
+        <div class="emoji-item" onclick="addEmoji('💯')">💯</div>
+        <div class="emoji-item" onclick="addEmoji('✨')">✨</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="micBtn" class="btn-yellow" title="Mute/unmute"><i class="fas fa-microphone"></i></button>
+  <button id="shareBtn" class="btn-blue" title="Share screen"><i class="fas fa-desktop"></i></button>
+  <button id="recordBtn" class="btn" style="background:#7d00ff" title="Start/stop recording"><i class="fas fa-circle"></i></button>
+  <button id="pipBtn" class="btn" style="background:#00ffaa" title="Picture-in-picture"><i class="fas fa-clone"></i></button>
+  <button id="fsBtn" class="btn-green" title="Fullscreen"><i class="fas fa-expand"></i></button>
+  <button id="endBtn" class="btn-red" title="End call"><i class="fas fa-phone-slash"></i></button>
+</div>
+
+<audio id="ringtone" preload="auto" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"></audio>
+
+<input type="file" id="fileInput" style="display:none;" multiple>
+
+<script>
+const USERNAME = "{{ request.user.username }}";
+const OTHER_USER = "{{ other_user }}";
+const IS_CALLER = ("{{ is_caller }}" === "True");
+
+let ws, pc, localStream, remoteStream = new MediaStream();
+let recorder, recordedChunks = [], isRecording = false;
+let recordingTimer = null, recordingSeconds = 0;
+let timerInterval = null, seconds = 0, isInCall = false;
+let waitingOffer = null, currentCounterpart = null;
+let wsBackoff = 1000, wsMaxBackoff = 16000;
+let audioCtx, sourceNode, biquad, gainNode, destNode;
+let currentFilter = 'none';
+let currentCamera = 'user';
+let isLocalMirrored = false;
+let isRemoteMirrored = false;
+let isRemoteMuted = false;
+
+const ringtone = document.getElementById('ringtone');
+const callStatus = document.getElementById('callStatus');
+const presenceIndicator = document.getElementById('presenceIndicator');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const localFilterOverlay = document.getElementById('localFilterOverlay');
+const remoteFilterOverlay = document.getElementById('remoteFilterOverlay');
+const overlayLocal = document.getElementById('overlayLocal');
+const overlayRemote = document.getElementById('overlayRemote');
+const incomingCallPopup = document.getElementById('incomingCallPopup');
+const callWaitingPopup = document.getElementById('callWaitingPopup');
+const callerName = document.getElementById('callerName');
+const waitingFrom = document.getElementById('waitingFrom');
+const waitingInfo = document.getElementById('waitingInfo');
+const acceptCallBtn = document.getElementById('acceptCall');
+const rejectCallBtn = document.getElementById('rejectCall');
+const acceptWaitingBtn = document.getElementById('acceptWaiting');
+const declineWaitingBtn = document.getElementById('declineWaiting');
+const timerBox = document.getElementById('timerBox');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendChatBtn = document.getElementById('sendChatBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+const blurToggle = document.getElementById('blurToggle');
+const noiseToggle = document.getElementById('noiseToggle');
+const themeToggle = document.getElementById('themeToggle');
+const backButton = document.getElementById('backButton');
+const recordBtn = document.getElementById('recordBtn');
+const recordingIndicator = document.getElementById('recordingIndicator');
+const recordingTime = document.getElementById('recordingTime');
+const emojiBtn = document.getElementById('emojiBtn');
+const emojiPicker = document.getElementById('emojiPicker');
+const fileBtn = document.getElementById('fileBtn');
+const fileInput = document.getElementById('fileInput');
+const uploadProgressBar = document.getElementById('uploadProgressBar');
+const uploadProgressFill = document.getElementById('uploadProgressFill');
+const filterButtons = document.querySelectorAll('.filter-btn');
+const flipCameraBtn = document.getElementById('flipCameraBtn');
+const mirrorLocalBtn = document.getElementById('mirrorLocalBtn');
+const mirrorRemoteBtn = document.getElementById('mirrorRemoteBtn');
+const muteRemoteBtn = document.getElementById('muteRemoteBtn');
+
+function initTheme() {
+  const saved = localStorage.getItem('vh_theme') || 'dark';
+  if(saved === 'light') {
+    document.body.classList.add('light-mode');
+    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  } else {
+    document.body.classList.remove('light-mode');
+    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+  }
+  
+  themeToggle.addEventListener('click', ()=>{
+    const isLight = document.body.classList.toggle('light-mode');
+    localStorage.setItem('vh_theme', isLight ? 'light' : 'dark');
+    themeToggle.innerHTML = isLight ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  });
+}
+initTheme();
+
+backButton.addEventListener('click', () => {
+  if(isInCall) {
+    if(confirm('You are in a call. Do you want to end the call and go back?')) {
+      endCall();
+      window.history.back();
+    }
+  } else {
+    window.history.back();
+  }
+});
+
+flipCameraBtn.addEventListener('click', async () => {
+  if(!localStream) return;
+  
+  try {
+    currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: currentCamera === 'user' ? 'user' : 'environment' },
+      audio: true
+    });
+    
+    const oldTracks = localStream.getTracks();
+    const newVideoTrack = newStream.getVideoTracks()[0];
+    const newAudioTrack = newStream.getAudioTracks()[0];
+    
+    localStream.removeTrack(oldTracks[0]);
+    localStream.removeTrack(oldTracks[1]);
+    localStream.addTrack(newVideoTrack);
+    localStream.addTrack(newAudioTrack);
+    
+    localVideo.srcObject = localStream;
+    
+    if(pc) {
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if(sender) {
+        sender.replaceTrack(newVideoTrack);
+      }
+    }
+    
+    oldTracks.forEach(track => track.stop());
+  } catch (error) {
+    console.error('Error switching camera:', error);
+  }
+});
+
+mirrorLocalBtn.addEventListener('click', () => {
+  isLocalMirrored = !isLocalMirrored;
+  localVideo.style.transform = isLocalMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+  mirrorLocalBtn.innerHTML = isLocalMirrored ? 
+    '<i class="fas fa-exchange-alt"></i> Unmirror' : 
+    '<i class="fas fa-exchange-alt"></i> Mirror';
+});
+
+mirrorRemoteBtn.addEventListener('click', () => {
+  isRemoteMirrored = !isRemoteMirrored;
+  remoteVideo.style.transform = isRemoteMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+  mirrorRemoteBtn.innerHTML = isRemoteMirrored ? 
+    '<i class="fas fa-exchange-alt"></i> Unmirror' : 
+    '<i class="fas fa-exchange-alt"></i> Mirror';
+});
+
+muteRemoteBtn.addEventListener('click', () => {
+  isRemoteMuted = !isRemoteMuted;
+  remoteVideo.muted = isRemoteMuted;
+  muteRemoteBtn.innerHTML = isRemoteMuted ? 
+    '<i class="fas fa-volume-mute"></i> Unmute' : 
+    '<i class="fas fa-volume-up"></i> Mute';
+});
+
+emojiBtn.addEventListener('click', () => {
+  emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+});
+
+function addEmoji(emoji) {
+  const input = chatInput;
+  input.value += emoji;
+  input.focus();
+  emojiPicker.style.display = 'none';
+}
+
+fileBtn.addEventListener('click', () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
+
+  for (const file of files) {
+    await sendFile(file);
+  }
+  
+  fileInput.value = '';
+});
+
+async function sendFile(file) {
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File size too large (max 10MB)');
+    return;
+  }
+
+  uploadProgressBar.style.display = 'block';
+  uploadProgressFill.style.width = '0%';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const fileData = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      data: e.target.result.split(',')[1]
+    };
+
+    send({
+      type: 'file',
+      from: USERNAME,
+      to: OTHER_USER,
+      file: fileData
+    });
+
+    appendFileMessage(USERNAME, file, true);
+    
+    uploadProgressFill.style.width = '100%';
+    setTimeout(() => {
+      uploadProgressBar.style.display = 'none';
+      uploadProgressFill.style.width = '0%';
+    }, 1000);
+  };
+
+  reader.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const percent = (e.loaded / e.total) * 100;
+      uploadProgressFill.style.width = `${percent}%`;
+    }
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function appendFileMessage(sender, file, isMe) {
+  const fileSize = formatFileSize(file.size);
+  const div = document.createElement('div');
+  div.className = `msg ${isMe ? 'me' : 'other'}`;
+  
+  const fileHtml = `
+    <div class="file-message">
+      <div class="file-icon">
+        <i class="fas ${getFileIcon(file.type)}"></i>
+      </div>
+      <div class="file-name" title="${file.name}">
+        ${file.name}
+      </div>
+      <div class="file-size">
+        ${fileSize}
+      </div>
+    </div>
+  `;
+  
+  div.innerHTML = fileHtml;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function getFileIcon(mimeType) {
+  if (mimeType.includes('image')) return 'fa-file-image';
+  if (mimeType.includes('pdf')) return 'fa-file-pdf';
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-file-word';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fa-file-excel';
+  if (mimeType.includes('audio')) return 'fa-file-audio';
+  if (mimeType.includes('video')) return 'fa-file-video';
+  if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'fa-file-archive';
+  return 'fa-file';
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    currentFilter = btn.dataset.filter;
+    
+    localVideo.classList.remove('filter-grayscale', 'filter-sepia', 'filter-invert', 'filter-hue');
+    remoteVideo.classList.remove('filter-grayscale', 'filter-sepia', 'filter-invert', 'filter-hue');
+    
+    if (currentFilter !== 'none') {
+      localVideo.classList.add(`filter-${currentFilter}`);
+      remoteVideo.classList.add(`filter-${currentFilter}`);
+    }
+  });
+});
+
+function connectWS(){
+  ws = new WebSocket("ws://" + window.location.host + "/ws/video/" + OTHER_USER + "/");
+  ws.onopen = () => {
+    wsBackoff = 1000;
+    ws.send(JSON.stringify({type:'presence', from: USERNAME, to: OTHER_USER}));
+  };
+  ws.onmessage = async (ev) => {
+    try{
+      const msg = JSON.parse(ev.data);
+      handleSignal(msg);
+    }catch(e){}
+  };
+  ws.onclose = () => {
+    setTimeout(()=> {
+      wsBackoff = Math.min(wsBackoff * 2, wsMaxBackoff);
+      connectWS();
+    }, wsBackoff);
+  };
+  ws.onerror = (e) => ws.close();
+}
+connectWS();
+
+async function ensureLocalStream(){
+  if(localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+  localVideo.srcObject = localStream;
+  return localStream;
+}
+
+function createPeer(){
+  pc = new RTCPeerConnection();
+  pc.ontrack = (e) => {
+    e.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+    remoteVideo.srcObject = remoteStream;
+  };
+  pc.onicecandidate = e => {
+    if(e.candidate) send({type:'ice', candidate: e.candidate, from:USERNAME, to:OTHER_USER});
+  };
+  pc.onconnectionstatechange = () => {
+    if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed') endCall();
+  };
+  return pc;
+}
+
+function send(obj){
+  if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+async function handleSignal(msg){
+  if(msg.type === 'presence'){
+    presenceIndicator.innerText = msg.status || 'online';
+    return;
+  }
+
+  if(msg.type === 'typing'){
+    typingIndicator.innerText = `${msg.from} is typing...`;
+    setTimeout(()=> { typingIndicator.innerText = ''; }, 1500);
+    return;
+  }
+
+  if(msg.type === 'chat'){
+    appendMessage(msg.from, msg.text, 'other');
+    return;
+  }
+
+  if(msg.type === 'file'){
+    const fileData = msg.file;
+    const blob = b64toBlob(fileData.data, fileData.type);
+    const file = new File([blob], fileData.name, { type: fileData.type });
+    appendFileMessage(msg.from, file, false);
+    
+    const downloadLink = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadLink;
+    a.download = fileData.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(downloadLink), 100);
+    return;
+  }
+
+  if(msg.type === 'check_busy'){
+    if(isInCall) send({type:'busy', from:USERNAME, to:msg.from});
+    return;
+  }
+
+  if(msg.type === 'busy'){
+    alert('User is in another call');
+    return;
+  }
+
+  if(msg.type === 'offer'){
+    if(isInCall){
+      waitingOffer = msg;
+      waitingFrom.innerText = `${msg.from} is calling`;
+      waitingInfo.innerText = 'Incoming call — currently in a call';
+      callWaitingPopup.style.display = 'block';
+      send({type:'call_waiting', from: USERNAME, to: msg.from});
+      return;
+    }
+    incomingCallPopup.style.display = 'block';
+    callerName.innerText = `${msg.from} is calling you`;
+    ringtone.play();
+    waitingOffer = msg;
+    return;
+  }
+
+  if(msg.type === 'call_waiting'){
+    alert(`${msg.from} has call waiting`);
+    return;
+  }
+
+  if(msg.type === 'answer'){
+    if(pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+    startTimer();
+    ringtone.pause();
+    isInCall = true;
+    currentCounterpart = msg.from;
+    callStatus.innerText = 'in call';
+    return;
+  }
+
+  if(msg.type === 'ice'){
+    if(pc && msg.candidate) await pc.addIceCandidate(msg.candidate);
+    return;
+  }
+
+  if(msg.type === 'end'){
+    endCall();
+    return;
+  }
+
+  if(msg.type === 'hold'){
+    callStatus.innerText = 'on hold';
+    return;
+  }
+}
+
+function b64toBlob(b64Data, contentType='', sliceSize=512) {
+  const byteCharacters = atob(b64Data);
+  const byteArrays = [];
+
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+
+    const byteArray = new Uint8Array(byteNumbers);
+    byteArrays.push(byteArray);
+  }
+
+  const blob = new Blob(byteArrays, {type: contentType});
+  return blob;
+}
+
+acceptCallBtn.addEventListener('click', async ()=>{
+  incomingCallPopup.style.display = 'none';
+  ringtone.pause();
+  await ensureLocalStream();
+  pc = createPeer();
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  if(waitingOffer && waitingOffer.offer){
+    await pc.setRemoteDescription(new RTCSessionDescription(waitingOffer.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    send({type:'answer', from: USERNAME, to: waitingOffer.from, answer});
+    isInCall = true;
+    currentCounterpart = waitingOffer.from;
+    callStatus.innerText = 'in call';
+    startTimer();
+    waitingOffer = null;
+  }
+});
+
+rejectCallBtn.addEventListener('click', ()=>{
+  incomingCallPopup.style.display = 'none';
+  ringtone.pause();
+  if(waitingOffer){
+    send({type:'end', from: USERNAME, to: waitingOffer.from});
+    waitingOffer = null;
+  }
+});
+
+acceptWaitingBtn.addEventListener('click', async ()=>{
+  callWaitingPopup.style.display = 'none';
+  if(currentCounterpart) send({type:'end', from: USERNAME, to: currentCounterpart});
+  if(waitingOffer){
+    await ensureLocalStream();
+    if(pc) pc.close();
+    pc = createPeer();
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    await pc.setRemoteDescription(new RTCSessionDescription(waitingOffer.offer));
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    send({type:'answer', from: USERNAME, to: waitingOffer.from, answer: ans});
+    isInCall = true;
+    currentCounterpart = waitingOffer.from;
+    startTimer();
+    waitingOffer = null;
+  }
+});
+
+declineWaitingBtn.addEventListener('click', ()=>{
+  if(waitingOffer){
+    send({type:'end', from: USERNAME, to: waitingOffer.from});
+    waitingOffer = null;
+  }
+  callWaitingPopup.style.display = 'none';
+});
+
+async function placeCall(){
+  await ensureLocalStream();
+  pc = createPeer();
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  send({type:'check_busy', from: USERNAME, to: OTHER_USER});
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  send({type:'offer', from: USERNAME, to: OTHER_USER, offer});
+  ringtone.play();
+  callStatus.innerText = 'calling';
+}
+
+if(IS_CALLER) placeCall();
+
+function endCall(){
+  if(pc) pc.close();
+  pc = null;
+  isInCall = false;
+  currentCounterpart = null;
+  stopTimer();
+  callStatus.innerText = 'idle';
+  ringtone.pause();
+}
+
+function startTimer(){
+  seconds = 0;
+  timerBox.style.display = 'block';
+  timerInterval = setInterval(()=>{
+    seconds++;
+    const m = Math.floor(seconds/60).toString().padStart(2,'0');
+    const s = (seconds%60).toString().padStart(2,'0');
+    timerBox.innerText = `${m}:${s}`;
+  },1000);
+}
+
+function stopTimer(){
+  clearInterval(timerInterval);
+  timerBox.style.display = 'none';
+}
+
+function startRecordingTimer() {
+  recordingSeconds = 0;
+  recordingTimer = setInterval(() => {
+    recordingSeconds++;
+    const m = Math.floor(recordingSeconds/60).toString().padStart(2,'0');
+    const s = (recordingSeconds%60).toString().padStart(2,'0');
+    recordingTime.textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function stopRecordingTimer() {
+  clearInterval(recordingTimer);
+  recordingSeconds = 0;
+  recordingTime.textContent = '00:00';
+}
+
+recordBtn.addEventListener('click', ()=>{
+  if(!isRecording){
+    recordedChunks = [];
+    recorder = new MediaRecorder(remoteStream, {mimeType:'video/webm;codecs=vp9,opus'});
+    recorder.ondataavailable = (ev)=> recordedChunks.push(ev.data);
+    recorder.onstop = ()=>{
+      const blob = new Blob(recordedChunks, {type:'video/webm'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; 
+      a.download = `call_${Date.now()}.webm`; 
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    recorder.start();
+    isRecording = true;
+    recordBtn.classList.add('recording-active');
+    recordingIndicator.style.display = 'flex';
+    startRecordingTimer();
+  } else {
+    recorder.stop();
+    isRecording = false;
+    recordBtn.classList.remove('recording-active');
+    recordingIndicator.style.display = 'none';
+    stopRecordingTimer();
+  }
+});
+
+sendChatBtn.addEventListener('click', ()=>{
+  const text = chatInput.value.trim();
+  if(!text) return;
+  appendMessage(USERNAME, text, 'me');
+  send({type:'chat', from: USERNAME, to: OTHER_USER, text});
+  chatInput.value = '';
+});
+
+chatInput.addEventListener('input', ()=> send({type:'typing', from: USERNAME, to: OTHER_USER}));
+
+function appendMessage(who, text, cls){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (cls === 'me' ? 'me' : 'other');
+  div.innerText = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+document.getElementById('shareBtn').addEventListener('click', async ()=>{
+  try{
+    const screen = await navigator.mediaDevices.getDisplayMedia({video:true});
+    const track = screen.getVideoTracks()[0];
+    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    if(sender) await sender.replaceTrack(track);
+    track.onended = async ()=>{
+      const localVideoTrack = localStream.getVideoTracks()[0];
+      if(sender) await sender.replaceTrack(localVideoTrack);
+    };
+  }catch(e){}
+});
+
+document.getElementById('pipBtn').addEventListener('click', async ()=>{
+  try{
+    if(document.pictureInPictureElement) await document.exitPictureInPicture();
+    else await remoteVideo.requestPictureInPicture();
+  }catch(e){}
+});
+
+document.getElementById('fsBtn').addEventListener('click', ()=> document.documentElement.requestFullscreen());
+
+document.getElementById('micBtn').addEventListener('click', ()=>{
+  if(!localStream) return;
+  const t = localStream.getAudioTracks()[0];
+  t.enabled = !t.enabled;
+  document.getElementById('micBtn').innerHTML = t.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+});
+
+document.getElementById('endBtn').addEventListener('click', ()=>{
+  if(currentCounterpart) send({type:'end', from: USERNAME, to: currentCounterpart});
+  endCall();
+  setTimeout(() => window.history.back(), 500);
+});
+
+blurToggle.addEventListener('change', ()=>{
+  const checked = blurToggle.checked;
+  if(checked) localVideo.classList.add('blurred');
+  else localVideo.classList.remove('blurred');
+});
+
+noiseToggle.addEventListener('change', async ()=>{
+  if(noiseToggle.checked){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sourceNode = audioCtx.createMediaStreamSource(localStream);
+      biquad = audioCtx.createBiquadFilter();
+      biquad.type = 'highpass';
+      biquad.frequency.value = 150;
+      destNode = audioCtx.createMediaStreamDestination();
+      sourceNode.connect(biquad).connect(destNode);
+      const processedTrack = destNode.stream.getAudioTracks()[0];
+      const sender = pc ? pc.getSenders().find(s=>s.track && s.track.kind==='audio') : null;
+      if(sender && processedTrack) sender.replaceTrack(processedTrack);
+    }
+  } else {
+    if(audioCtx){
+      audioCtx.close();
+      audioCtx = null;
+    }
+    if(pc && localStream){
+      const s = pc.getSenders().find(s=>s.track && s.track.kind==='audio');
+      if(s) s.replaceTrack(localStream.getAudioTracks()[0]);
+    }
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!emojiBtn.contains(e.target) && !emojiPicker.contains(e.target)) {
+    emojiPicker.style.display = 'none';
+  }
+});
+
+async function startFaceDetection(){
+  const FD = window.FaceDetector;
+  if(!FD) return;
+  const detector = new FD();
+  const drawBox = (canvas, ctx, boxes)=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = 'lime'; ctx.lineWidth = 2;
+    boxes.forEach(b=>{
+      ctx.strokeRect(b.boundingBox.x, b.boundingBox.y, b.boundingBox.width, b.boundingBox.height);
+    });
+  };
+  const update = async ()=>{
+    try{
+      const boxesLocal = await detector.detect(localVideo);
+      const boxesRemote = await detector.detect(remoteVideo);
+      const ctxL = overlayLocal.getContext('2d');
+      const ctxR = overlayRemote.getContext('2d');
+      drawBox(overlayLocal, ctxL, boxesLocal || []);
+      drawBox(overlayRemote, ctxR, boxesRemote || []);
+    }catch(e){}
+  };
+  setInterval(update, 300);
+}
+startFaceDetection();
+
+setInterval(()=> { typingIndicator.innerText = ''; }, 2000);
+
+window.addEventListener('beforeunload', ()=>{
+  if(ws && ws.readyState === WebSocket.OPEN) ws.close();
+});
+</script>
+</body>
+</html>

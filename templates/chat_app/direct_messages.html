@@ -15,50 +15,70 @@
                     <i class="fas fa-plus me-1"></i>New Message
                 </button>
             </div>
+
             <div class="card-body">
                 {% if dm_conversations %}
                     <div class="list-group list-group-flush">
+
                         {% for conv in dm_conversations %}
+                        <div class="list-group-item py-3 d-flex justify-content-between align-items-center">
+
+                            <!-- LEFT SIDE (user + last message + online status) -->
                             <a href="{% url 'chat_app:direct_message_chat' conv.user.username %}" 
-                               class="list-group-item list-group-item-action py-3 d-flex justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <div class="position-relative me-3">
-                                        <div class="bg-primary rounded-circle p-2">
-                                            <i class="fas fa-user text-white"></i>
-                                        </div>
-                                        {% if conv.user.profile.is_online %}
-                                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-white rounded-circle">
-                                                <span class="visually-hidden">Online</span>
-                                            </span>
-                                        {% endif %}
+                               class="text-decoration-none flex-grow-1 d-flex align-items-center">
+
+                                <div class="position-relative me-3">
+                                    <div class="bg-primary rounded-circle p-2">
+                                        <i class="fas fa-user text-white"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-1">{{ conv.user.username }}</h6>
-                                        {% if conv.last_message %}
-                                            <p class="mb-0 text-muted small">{{ conv.last_message.content|truncatewords:10 }}</p>
-                                        {% else %}
-                                            <p class="mb-0 text-muted small">Start a conversation</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="text-end">
-                                    {% if conv.last_message %}
-                                        <small class="text-muted d-block">
-                                            {{ conv.last_message.timestamp|timesince }} ago
-                                        </small>
+
+                                    {% if conv.user.profile.is_online %}
+                                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-white rounded-circle"></span>
                                     {% endif %}
-                                    {% if conv.unread_count > 0 %}
-                                        <span class="badge bg-danger">{{ conv.unread_count }}</span>
+                                </div>
+
+                                <div>
+                                    <h6 class="mb-1 text-dark">{{ conv.user.username }}</h6>
+
+                                    {% if conv.last_message %}
+                                        <p class="mb-0 text-muted small">
+                                            {{ conv.last_message.content|truncatewords:10 }}
+                                        </p>
+                                    {% else %}
+                                        <p class="mb-0 text-muted small">Start a conversation</p>
                                     {% endif %}
                                 </div>
                             </a>
+
+                            <!-- RIGHT SIDE (timestamp + unread + call button) -->
+                            <div class="text-end ms-2">
+
+                                {% if conv.last_message %}
+                                <small class="text-muted d-block">
+                                    {{ conv.last_message.timestamp|timesince }} ago
+                                </small>
+                                {% endif %}
+
+                                {% if conv.unread_count > 0 %}
+                                <span class="badge bg-danger">{{ conv.unread_count }}</span>
+                                {% endif %}
+
+                                <a href="{% url 'chat_app:video_call' conv.user.username %}"
+                                   class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="fas fa-video"></i>
+                                </a>
+                            </div>
+                        </div>
                         {% endfor %}
+
                     </div>
+
                 {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-user-friends fa-4x text-muted mb-3"></i>
                         <h5 class="text-muted">No conversations yet</h5>
                         <p class="text-muted">Start a new direct message conversation</p>
+
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newDMModal">
                             <i class="fas fa-plus me-2"></i>Start Conversation
                         </button>
@@ -78,6 +98,7 @@
                     <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>New Direct Message</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="userSearch" class="form-label">Search Users</label>
@@ -85,8 +106,11 @@
                         <div id="userSearchResults" class="mt-2"></div>
                     </div>
                 </div>
+
                 <div class="modal-footer">
-                    <button id="startChatBtn" type="button" class="btn btn-primary" disabled>Start Chat</button>
+                    <button id="startChatBtn" type="button" class="btn btn-primary" disabled>
+                        Start Chat
+                    </button>
                 </div>
             </form>
         </div>
@@ -116,15 +140,24 @@
                         resultsDiv.innerHTML = '<div class="text-muted small">No users found.</div>';
                         return;
                     }
+
                     users.forEach(u => {
                         const div = document.createElement('div');
                         div.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                        div.innerHTML = `<div><strong>${u.username}</strong> ${u.is_online ? '<span class="badge bg-success ms-2">Online</span>' : ''}</div>
-                                         <div><button class="btn btn-sm btn-outline-primary select-user">Message</button></div>`;
-                        div.querySelector('.select-user').addEventListener('click', () => {
+
+                        div.innerHTML = `
+                            <div>
+                                <strong>${u.username}</strong>
+                                ${u.is_online ? '<span class="badge bg-success ms-2">Online</span>' : ''}
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary">Message</button>
+                        `;
+
+                        div.querySelector('button').onclick = () => {
                             selectedUser = u.username;
                             startBtn.disabled = false;
-                        });
+                        };
+
                         resultsDiv.appendChild(div);
                     });
                 })
@@ -135,11 +168,12 @@
         }
     });
 
-    startBtn.addEventListener('click', function() {
+    startBtn.onclick = function() {
         if (!selectedUser) return;
-        // go to DM chat page
-        window.location.href = "{% url 'chat_app:direct_message_chat' 'USERNAME' %}".replace('USERNAME', selectedUser);
-    });
+
+        const url = "{% url 'chat_app:direct_message_chat' 'USERNAME' %}".replace('USERNAME', selectedUser);
+        window.location.href = url;
+    };
 })();
 </script>
 {% endblock %}

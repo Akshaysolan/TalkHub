@@ -135,3 +135,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'typing_stopped',
             'username': event['username']
         }))
+        
+        
+
+class VideoCallConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
+        self.me = self.scope["user"].username
+        self.other = self.scope["url_route"]["kwargs"]["username"]
+
+        self.room = f"video_{self.me}_{self.other}"
+        await self.channel_layer.group_add(self.room, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.room, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        await self.channel_layer.group_send(
+            self.room,
+            {
+                "type": "signal_message",
+                "data": data
+            }
+        )
+
+    async def signal_message(self, event):
+        await self.send(text_data=json.dumps(event["data"]))

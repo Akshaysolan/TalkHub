@@ -1346,3 +1346,11 @@ def get_dummy_email_detail(email_id):
     })
     
     return JsonResponse(email_data)
+
+
+
+def video_call(request, username):
+    return render(request, "chat_app/video.html", {
+        "other_user": username,
+        "is_caller": True
+    })

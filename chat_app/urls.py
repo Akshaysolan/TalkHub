@@ -50,5 +50,9 @@ urlpatterns = [
     path('api/emails/check_new/', views.email_api_check_new, name='email_api_check_new'),
     path('api/emails/attachment/<int:attachment_id>/download/', 
          views.email_api_download, name='email_api_download'),
+    
+    
+    path("video/<str:username>/", views.video_call, name="video_call"),
+
 
 ]
