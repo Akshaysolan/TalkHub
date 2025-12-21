@@ -2,19 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "chat_app/wsgi.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/(admin|api|static|media)/(.*)",
+      "dest": "api/index.py"
+    },
+    {
       "src": "/(.*)",
-      "dest": "chat_app/wsgi.py"
+      "dest": "api/index.py"
     }
   ],
   "env": {
-    "DJANGO_SETTINGS_MODULE": "chat_project_name.settings",
-    "SECRET_KEY": "django-insecure-!@#$%^&*()_+",
+    "PYTHONPATH": "/var/task",
+    "DJANGO_SETTINGS_MODULE": "chat_project.settings",
+    "SECRET_KEY": "test-secret-key-for-vercel-123",
     "DEBUG": "True",
     "ALLOWED_HOSTS": "*"
   }
