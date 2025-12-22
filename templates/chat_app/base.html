@@ -44,9 +44,10 @@
             background-color: var(--content-bg);
             color: #333;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
-        /* Sidebar Styles */
+        /* Sidebar Styles with Scrollbar */
         .sidebar {
             min-height: 100vh;
             background-color: var(--sidebar-bg);
@@ -57,11 +58,54 @@
             z-index: 1000;
             box-shadow: var(--shadow);
             overflow-y: auto;
+            overflow-x: hidden;
+            height: 100vh;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom scrollbar for Webkit browsers */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin: 5px 0;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Hide scrollbar when not interacting */
+        .sidebar:not(:hover)::-webkit-scrollbar-thumb {
+            background: transparent;
+        }
+
+        /* Dark theme scrollbar */
+        [data-theme="dark"] .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="dark"] .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .sidebar.collapsed {
             width: 70px;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar.collapsed .nav-link span,
@@ -285,6 +329,66 @@
             font-size: 1rem;
         }
 
+        /* User Info Section - Fixed at top */
+        .user-info {
+            background-color: var(--sidebar-hover);
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: var(--transition);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 28px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.05);
+        }
+
+        /* Navigation padding for scrollable area */
+        .sidebar nav {
+            padding-bottom: 30px;
+        }
+
+        /* Gradient overlay for scroll indication */
+        .sidebar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to top, var(--sidebar-bg) 20%, transparent);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+
+        .sidebar:hover::after {
+            opacity: 1;
+        }
+
+        /* Remove gradient when collapsed */
+        .sidebar.collapsed::after {
+            display: none;
+        }
+
         /* Main Content Area */
         .main-content {
             margin-left: 250px;
@@ -293,6 +397,8 @@
             flex-direction: column;
             transition: var(--transition);
             min-height: 100vh;
+            position: relative;
+            z-index: 1;
         }
 
         .main-content.expanded {
@@ -339,34 +445,6 @@
         .stat-label {
             font-size: 0.875rem;
             opacity: 0.9;
-        }
-
-        /* User Info Section */
-        .user-info {
-            background-color: var(--sidebar-hover);
-            padding: 25px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .user-avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: var(--primary-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 28px;
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-
-        .user-avatar:hover {
-            transform: scale(1.05);
         }
 
         /* Content Wrapper */
@@ -556,6 +634,7 @@
             .sidebar {
                 margin-left: -250px;
                 transform: translateX(-100%);
+                overflow-y: auto;
             }
             
             .sidebar.show {
@@ -566,6 +645,7 @@
             .sidebar.collapsed {
                 margin-left: -70px;
                 transform: translateX(-100%);
+                overflow-y: auto;
             }
             
             .sidebar.collapsed.show {
@@ -614,6 +694,12 @@
             .theme-switcher {
                 margin-left: 10px;
             }
+            
+            /* Adjust user info for mobile */
+            .user-info {
+                position: relative;
+                top: 0;
+            }
         }
 
         /* Desktop: Hide mobile toggle button */
@@ -637,9 +723,9 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Custom scrollbar */
+        /* Custom scrollbar for main content */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
 
         ::-webkit-scrollbar-track {
@@ -917,6 +1003,15 @@
         document.getElementById('sidebarToggle').addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('show');
+            
+            // Prevent body scrolling when sidebar is open on mobile
+            if (window.innerWidth <= 768) {
+                if (sidebar.classList.contains('show')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
         });
 
         // Sidebar collapse functionality for desktop
@@ -930,6 +1025,9 @@
             // Save state to localStorage
             const isCollapsed = sidebar.classList.contains('collapsed');
             localStorage.setItem('sidebarCollapsed', isCollapsed);
+            
+            // Update scrollbar visibility
+            updateSidebarScroll();
         });
 
         // Theme switcher functionality
@@ -945,13 +1043,39 @@
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
+            
             if (window.innerWidth <= 768 && 
                 !sidebar.contains(event.target) && 
+                event.target !== toggleBtn &&
                 !toggleBtn.contains(event.target) &&
                 sidebar.classList.contains('show')) {
+                
                 sidebar.classList.remove('show');
+                document.body.style.overflow = ''; // Restore scrolling
             }
         });
+
+        // Function to update sidebar scroll indicators
+        function updateSidebarScroll() {
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            
+            // Add scroll event listener to show/hide gradient
+            sidebar.addEventListener('scroll', function() {
+                const isScrolled = sidebar.scrollTop > 10;
+                const isAtBottom = Math.ceil(sidebar.scrollTop + sidebar.clientHeight) >= sidebar.scrollHeight - 10;
+                
+                // Show gradient when not at top or bottom
+                if (isScrolled || !isAtBottom) {
+                    sidebar.style.setProperty('--show-gradient', '1');
+                } else {
+                    sidebar.style.setProperty('--show-gradient', '0');
+                }
+            });
+            
+            // Trigger initial check
+            sidebar.dispatchEvent(new Event('scroll'));
+        }
 
         // Load saved preferences
         document.addEventListener('DOMContentLoaded', function() {
@@ -967,6 +1091,34 @@
                     document.getElementById('mainContent').classList.add('expanded');
                 }
             }
+            
+            // Initialize sidebar scroll
+            updateSidebarScroll();
+            
+            // Add CSS variable for gradient control
+            const style = document.createElement('style');
+            style.textContent = `
+                .sidebar {
+                    --show-gradient: 0;
+                }
+                
+                .sidebar::after {
+                    opacity: var(--show-gradient);
+                }
+            `;
+            document.head.appendChild(style);
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth > 768 && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+                document.body.style.overflow = ''; // Restore scrolling
+            }
+            
+            // Update scroll on resize
+            updateSidebarScroll();
         });
 
         // Update header stats
@@ -980,5 +1132,4 @@
     </script>
     {% block scripts %}{% endblock %}
 </body>
-</html>
 </html>

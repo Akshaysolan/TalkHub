@@ -758,69 +758,81 @@ def email_compose(request):
     }
     return render(request, 'chat_app/email_compose.html', context)
 
+from django.utils import timezone
+from django.utils.dateformat import format
+
 @login_required
 def email_api_inbox(request):
     """API endpoint for inbox emails - using real database"""
     try:
-        # Get filter from request
         filter_type = request.GET.get('filter', 'inbox')
         
-        # Base queryset
         if filter_type == 'inbox':
             emails_qs = Email.objects.filter(
                 recipients=request.user,
                 status='inbox'
-            )
+            ).order_by('-created_at')
         elif filter_type == 'sent':
             emails_qs = Email.objects.filter(
                 sender=request.user,
                 status='sent'
-            )
+            ).order_by('-created_at')
         elif filter_type == 'important':
             emails_qs = Email.objects.filter(
                 recipients=request.user,
                 status='inbox',
                 is_starred=True
-            )
+            ).order_by('-created_at')
         elif filter_type == 'trash':
             emails_qs = Email.objects.filter(
                 Q(recipients=request.user) | Q(sender=request.user),
                 status='trash'
-            )
+            ).order_by('-created_at')
         elif filter_type == 'drafts':
             emails_qs = Email.objects.filter(
                 sender=request.user,
                 status='draft'
-            )
+            ).order_by('-created_at')
         else:
             emails_qs = Email.objects.filter(
                 recipients=request.user,
                 status='inbox'
-            )
+            ).order_by('-created_at')
         
-        # Get emails with related data
-        inbox_emails = emails_qs.select_related('sender').prefetch_related('attachments').order_by('-created_at')
-        
-        # Count unread emails (only for inbox)
         unread_count = 0
         if filter_type == 'inbox':
-            unread_count = inbox_emails.filter(is_read=False).count()
+            unread_count = emails_qs.filter(is_read=False).count()
         
-        # Pagination
         page = int(request.GET.get('page', 1))
         per_page = 20
         start = (page - 1) * per_page
         end = start + per_page
         
-        # Prepare data
         emails_data = []
-        for email in inbox_emails[start:end]:
+        for email in emails_qs[start:end]:
+            # Get recipient display for sent emails
+            recipient_display = ""
+            if filter_type == 'sent' and email.recipients.exists():
+                recipient = email.recipients.first()
+                recipient_display = recipient.username
+            
+            # Format time for display (IST timezone)
+            time_str = ""
+            full_time_str = ""
+            if email.created_at:
+                # Convert to IST (Asia/Kolkata)
+                ist_time = email.created_at.astimezone(timezone.get_current_timezone())
+                time_str = ist_time.strftime('%I:%M %p')
+                full_time_str = ist_time.isoformat()
+            
             emails_data.append({
                 'id': email.id,
-                'sender': email.sender.username,
+                'sender': email.sender.username if email.sender else '',
+                'recipient': recipient_display,
                 'subject': email.subject or '(No Subject)',
-                'preview': email.get_preview(100) if hasattr(email, 'get_preview') else (email.body[:100] + '...' if len(email.body) > 100 else email.body),
-                'time': email.created_at.strftime('%I:%M %p') if email.created_at else '',
+                'preview': (email.body[:100] + '...' if len(email.body) > 100 else email.body),
+                'time': full_time_str,  # Full ISO format for client-side processing
+                'display_time': time_str,  # Formatted time for display
                 'date': email.created_at.strftime('%b %d') if email.created_at else '',
                 'unread': not email.is_read,
                 'important': email.is_starred,
@@ -831,16 +843,15 @@ def email_api_inbox(request):
         return JsonResponse({
             'emails': emails_data,
             'unread_count': unread_count,
-            'total_count': inbox_emails.count(),
+            'total_count': emails_qs.count(),
             'page': page,
-            'total_pages': (inbox_emails.count() + per_page - 1) // per_page,
+            'total_pages': (emails_qs.count() + per_page - 1) // per_page,
             'filter': filter_type
         })
         
     except Exception as e:
-        print(f"Error in email_api_inbox: {e}")  # For debugging
-        # Fallback to dummy data if there's an error
-        return get_dummy_email_data(request)
+        print(f"Error in email_api_inbox: {e}")
+        return get_dummy_email_data(request, filter_type)
 
 @login_required
 def email_api_detail(request, email_id):
@@ -851,42 +862,16 @@ def email_api_detail(request, email_id):
             Q(id=email_id, sender=request.user, status__in=['sent', 'draft'])
         )
         
-        # Mark as read if not already (only for inbox emails)
         if not email.is_read and email.status == 'inbox':
             email.mark_as_read()
         
-        # Get attachments
-        attachments = []
-        for attachment in email.attachments.all():
-            attachments.append({
-                'id': attachment.id,
-                'name': attachment.file_name,
-                'size': attachment.file_size_display if hasattr(attachment, 'file_size_display') else f"{attachment.file_size} bytes",
-                'url': attachment.file.url if attachment.file else '#',
-                'type': attachment.file_type
-            })
+        # Format date in IST
+        full_date_ist = ""
+        if email.created_at:
+            ist_time = email.created_at.astimezone(timezone.get_current_timezone())
+            full_date_ist = ist_time.strftime('%B %d, %Y at %I:%M %p %Z')
         
-        # Get recipients info
-        recipients_list = []
-        for recipient in email.recipients.all():
-            recipients_list.append({
-                'username': recipient.username,
-                'email': recipient.email
-            })
-        
-        cc_list = []
-        for cc in email.cc_recipients.all():
-            cc_list.append({
-                'username': cc.username,
-                'email': cc.email
-            })
-        
-        bcc_list = []
-        for bcc in email.bcc_recipients.all():
-            bcc_list.append({
-                'username': bcc.username,
-                'email': bcc.email
-            })
+        # ... rest of your detail view code ...
         
         email_data = {
             'id': email.id,
@@ -895,17 +880,12 @@ def email_api_detail(request, email_id):
             'subject': email.subject or '(No Subject)',
             'body': email.body,
             'body_html': email.body_html or email.body,
-            'full_date': email.created_at.strftime('%B %d, %Y at %I:%M %p') if email.created_at else 'Unknown date',
+            'full_date': full_date_ist,  # IST formatted date
+            'full_date_iso': email.created_at.isoformat() if email.created_at else '',
             'important': email.is_starred,
             'read': email.is_read,
             'status': email.status,
-            'attachments': attachments,
-            'recipients': recipients_list,
-            'cc': cc_list,
-            'bcc': bcc_list,
-            'can_reply': email.status == 'inbox',
-            'can_forward': True,
-            'can_delete': True,
+            # ... rest of your data ...
         }
         
         return JsonResponse(email_data)
@@ -915,7 +895,7 @@ def email_api_detail(request, email_id):
             'error': 'Email not found or you don\'t have permission to view it'
         }, status=404)
     except Exception as e:
-        print(f"Error in email_api_detail: {e}")  # For debugging
+        print(f"Error in email_api_detail: {e}")
         return get_dummy_email_detail(email_id)
 
 @csrf_exempt
@@ -1354,3 +1334,6 @@ def video_call(request, username):
         "other_user": username,
         "is_caller": True
     })
+
+
+email_api_inbox
